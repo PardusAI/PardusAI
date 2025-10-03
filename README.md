@@ -227,9 +227,7 @@ interface MemoryEntry {
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and setup.
 
 ## 📝 License
-
-ISC
-
+Refer to LICENSE
 ---
 
 **Ready to go!** Just run `npm start` and watch the magic happen! ✨
