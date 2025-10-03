@@ -9,9 +9,14 @@
  */
 export const SCREENSHOT_DESCRIPTION_PROMPT = 
   `
-    Please provide a detailed, descriptive summary of what is shown in this screenshot.
-    Point out all the details in the screenshot. You should specifically metion the content, text and image on the screenshot.
-    This would be used to retrival the screenshot when user ask a question.
+    Provide a comprehensive and detailed description of the screenshot. Explicitly mention and describe:
+
+  - **All visible text**: headings, labels, buttons, tooltips, body text, and any other written content.  
+  - **Images, icons, logos, or graphics**: identify and describe them clearly.  
+  - **Layout and structure**: menus, navigation bars, dialog boxes, pop-ups, or any interface components.  
+  - **Visual details**: colors, formatting, highlights, emphasis, or unique elements that distinguish this screenshot.  
+
+  The goal is to create a descriptive summary that makes this screenshot **easily retrievable** when a user asks a related question.
   `;
 
 /**
@@ -27,15 +32,26 @@ export function generateQuestionAnswerPrompt(
   imageContext: string
 ): string {
   return `
-  I'm showing you ${resultsCount} screenshots from my computer activity. 
-  Please analyze these images and answer the following question based on what you see in them.
+    You are given **${resultsCount} screenshots** from my computer activity.  
+    Carefully analyze the visible content in these images and use it to answer the question below.
 
-Question: ${question}
+    **Question:**  
+    ${question}
 
-Images shown:
-${imageContext}
+    **Screenshots provided:**  
+    ${imageContext}
 
-Please provide a detailed answer based on the actual content visible in the images.`;
+    **Instructions for your response:**  
+    - Base your answer only on the actual content visible in the screenshots.  
+    - Reference any relevant **text, images, icons, or layout details** from the screenshots.  
+    - Provide a clear, detailed, and accurate explanation that directly addresses the question.
+    - Use **markdown formatting** for better readability (bold, lists, code blocks, etc.).
+    - **IMPORTANT**: For ANY mathematical expressions, equations, or formulas, you MUST wrap them in LaTeX delimiters:
+      * Use $...$ for inline math (e.g., $E = mc^2$ or $\sigma \in \Gamma(X, \mathcal{O}_X(B))$)
+      * Use $$...$$ for display/block math (e.g., $$x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$$)
+      * Never write raw LaTeX without delimiters
+
+    `;
 }
 
 /**

@@ -1,4 +1,4 @@
-// Type declarations for the Electron API
+// Type declarations for the Electron API and global libraries
 declare global {
   interface Window {
     electronAPI: {
@@ -33,6 +33,15 @@ declare global {
       getCaptureStatus: () => Promise<boolean>;
     };
   }
+  
+  // Marked library loaded from CDN
+  const marked: {
+    parse: (markdown: string, options?: any) => string;
+    setOptions: (options: any) => void;
+  };
+  
+  // KaTeX library loaded from CDN
+  const renderMathInElement: (element: HTMLElement, options?: any) => void;
 }
 
 const chatPopup = document.getElementById('chat-popup') as HTMLDivElement;
@@ -66,6 +75,61 @@ let currentDatabases: any[] = [];
 let activeDatabase: any = null;
 let isCapturing = true; // Screenshot capture state
 let isDialogOpen = false; // Track if a dialog is currently open
+let isClickThroughEnabled = false; // Track if click-through mode is enabled
+
+// Wait for libraries to be loaded
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('✅ DOM loaded');
+  console.log('📚 Marked available:', typeof marked !== 'undefined');
+  console.log('📐 KaTeX available:', typeof renderMathInElement !== 'undefined');
+});
+
+// Configure marked to preserve LaTeX delimiters
+if (typeof marked !== 'undefined') {
+  marked.setOptions({
+    breaks: true,
+    gfm: true
+  });
+}
+
+// Helper function to render markdown with LaTeX
+function renderMarkdownWithLatex(content: string, targetElement: HTMLElement) {
+  // Check if libraries are available
+  if (typeof marked === 'undefined') {
+    console.error('❌ Marked library not loaded');
+    targetElement.textContent = content;
+    return;
+  }
+  
+  if (typeof renderMathInElement === 'undefined') {
+    console.error('❌ KaTeX library not loaded');
+    targetElement.innerHTML = marked.parse(content) as string;
+    return;
+  }
+  
+  // First, parse markdown
+  targetElement.innerHTML = marked.parse(content) as string;
+  
+  console.log('🔍 Rendering LaTeX in content...');
+  
+  // Then render LaTeX math expressions
+  try {
+    renderMathInElement(targetElement, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '$', right: '$', display: false},
+        {left: '\\[', right: '\\]', display: true},
+        {left: '\\(', right: '\\)', display: false}
+      ],
+      throwOnError: false,
+      strict: false,
+      trust: true
+    });
+    console.log('✅ LaTeX rendering complete');
+  } catch (e) {
+    console.error('❌ LaTeX rendering error:', e);
+  }
+}
 
 // Custom dialog functions
 function showPromptDialog(message: string, defaultValue: string = ''): Promise<string | null> {
@@ -101,10 +165,12 @@ function showPromptDialog(message: string, defaultValue: string = ''): Promise<s
     const cleanup = () => {
       isDialogOpen = false;
       document.body.removeChild(overlay);
-      // Re-enable click-through after dialog closes (if click-through mode is enabled)
-      setTimeout(() => {
-        window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
-      }, 100);
+      // Re-enable click-through after dialog closes (only if click-through mode is enabled)
+      if (isClickThroughEnabled) {
+        setTimeout(() => {
+          window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
+        }, 100);
+      }
     };
     
     const handleConfirm = () => {
@@ -169,10 +235,12 @@ function showConfirmDialog(message: string): Promise<boolean> {
     const cleanup = () => {
       isDialogOpen = false;
       document.body.removeChild(overlay);
-      // Re-enable click-through after dialog closes (if click-through mode is enabled)
-      setTimeout(() => {
-        window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
-      }, 100);
+      // Re-enable click-through after dialog closes (only if click-through mode is enabled)
+      if (isClickThroughEnabled) {
+        setTimeout(() => {
+          window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
+        }, 100);
+      }
     };
     
     const handleConfirm = () => {
@@ -335,6 +403,7 @@ window.electronAPI.onDatabaseSwitched(async (metadata: any) => {
 updateMemoryCount();
 updateDatabaseSelector();
 renderDatabaseList();
+loadSettings();
 
 function showPopup() {
   console.log('👁️  UI: Showing chat popup...');
@@ -371,7 +440,13 @@ function addMessage(content: string, type: 'user' | 'assistant', isError: boolea
   
   const contentDiv = document.createElement('div');
   contentDiv.className = `message-content ${isError ? 'error-message' : ''}`;
-  contentDiv.textContent = content;
+  
+  // For assistant messages, parse markdown and LaTeX; for user messages and errors, use plain text
+  if (type === 'assistant' && !isError) {
+    renderMarkdownWithLatex(content, contentDiv);
+  } else {
+    contentDiv.textContent = content;
+  }
   
   messageDiv.appendChild(labelDiv);
   messageDiv.appendChild(contentDiv);
@@ -429,9 +504,15 @@ function addMemoryInfo(memories: any[], totalCount: number) {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+// Store accumulated streaming text
+let streamingText = '';
+
 // Create a streaming message element that gets updated with chunks
 function createStreamingMessage(): HTMLDivElement {
   showPopup();
+  
+  // Reset streaming text
+  streamingText = '';
   
   const messageDiv = document.createElement('div');
   messageDiv.className = 'message assistant';
@@ -443,7 +524,7 @@ function createStreamingMessage(): HTMLDivElement {
   
   const contentDiv = document.createElement('div');
   contentDiv.className = 'message-content streaming';
-  contentDiv.textContent = '';
+  contentDiv.innerHTML = '';
   
   messageDiv.appendChild(labelDiv);
   messageDiv.appendChild(contentDiv);
@@ -459,9 +540,14 @@ function createStreamingMessage(): HTMLDivElement {
 function appendToStreamingMessage(chunk: string) {
   const streamingMessage = document.getElementById('streaming-message');
   if (streamingMessage) {
-    const contentDiv = streamingMessage.querySelector('.message-content');
+    const contentDiv = streamingMessage.querySelector('.message-content') as HTMLElement;
     if (contentDiv) {
-      contentDiv.textContent += chunk;
+      // Accumulate text
+      streamingText += chunk;
+      
+      // Parse and render markdown with LaTeX
+      renderMarkdownWithLatex(streamingText, contentDiv);
+      
       // Scroll to bottom
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
@@ -479,6 +565,8 @@ function finalizeStreamingMessage() {
     }
     scheduleHidePopup();
   }
+  // Clear accumulated text
+  streamingText = '';
 }
 
 chatForm.addEventListener('submit', async (e) => {
@@ -608,6 +696,12 @@ const interactiveElements = [chatPopup, chatForm, messageInput, sendButton, clea
 document.addEventListener('mousemove', (e) => {
   // Don't change click-through state if a dialog is open
   if (isDialogOpen) {
+    return;
+  }
+  
+  // Only apply click-through logic if the setting is enabled
+  if (!isClickThroughEnabled) {
+    window.electronAPI.setIgnoreMouseEvents(false);
     return;
   }
   
@@ -753,6 +847,7 @@ async function loadSettings() {
   alwaysOnTopToggle.checked = settings.alwaysOnTop;
   clickThroughToggle.checked = settings.clickThrough;
   preventCaptureToggle.checked = settings.preventCapture;
+  isClickThroughEnabled = settings.clickThrough;
 }
 
 // Always on top toggle
@@ -762,7 +857,12 @@ alwaysOnTopToggle.addEventListener('change', async () => {
 
 // Click-through toggle
 clickThroughToggle.addEventListener('change', async () => {
+  isClickThroughEnabled = clickThroughToggle.checked;
   await window.electronAPI.setClickThrough(clickThroughToggle.checked);
+  // Ensure mouse events are reset when disabling click-through
+  if (!isClickThroughEnabled) {
+    window.electronAPI.setIgnoreMouseEvents(false);
+  }
 });
 
 // Prevent capture toggle

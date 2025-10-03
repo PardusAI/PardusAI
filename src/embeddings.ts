@@ -61,12 +61,12 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 /**
  * Retrieve the top K most similar memory entries from the database
  * Only searches through memories that have completed embeddings
- * Results are sorted by timestamp (newest first) after retrieval
+ * Results are ranked by a combined score of semantic similarity and recency
  * 
  * @param query - The query text
  * @param db - The memory database
  * @param k - Number of results to return (default: 3)
- * @returns Array of top K similar memory entries with their similarity scores, ordered by timestamp
+ * @returns Array of top K similar memory entries with their similarity scores
  */
 export async function retrieveTopK(
   query: string,
@@ -83,22 +83,38 @@ export async function retrieveTopK(
   // Generate embedding for the query
   const queryEmbedding = await generateEmbedding(query);
 
-  // Calculate similarity for each memory
+  // Current time for recency calculation
+  const now = Date.now();
+
+  // Calculate similarity with time-based attention for each memory
   const results = embeddedMemories
     .filter(memory => memory.embedding !== null)
-    .map(memory => ({
-      memory,
-      similarity: cosineSimilarity(queryEmbedding, memory.embedding!)
-    }));
+    .map(memory => {
+      const semanticSimilarity = cosineSimilarity(queryEmbedding, memory.embedding!);
+      
+      // Time penalty: 0.1 * hours_old
+      // More recent images get a higher score
+      const hoursOld = (now - memory.time) / (1000 * 60 * 60);
+      const timePenalty = 0.1 * hoursOld;
+      
+      // Combined score: similarity minus time penalty
+      const combinedScore = semanticSimilarity - timePenalty;
+      
+      return {
+        memory,
+        similarity: semanticSimilarity, // Keep original similarity for display
+        combinedScore
+      };
+    });
 
-  // Sort by similarity in descending order to get top K
-  results.sort((a, b) => b.similarity - a.similarity);
+  // Sort by combined score (similarity + recency) in descending order
+  results.sort((a, b) => b.combinedScore - a.combinedScore);
 
   // Get top K results
-  const topK = results.slice(0, k);
-  
-  // Sort the top K results by timestamp (newest first)
-  topK.sort((a, b) => b.memory.time - a.memory.time);
+  const topK = results.slice(0, k).map(({ memory, similarity }) => ({
+    memory,
+    similarity
+  }));
 
   return topK;
 }

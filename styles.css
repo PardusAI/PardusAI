@@ -104,6 +104,103 @@ body {
   font-size: 14px;
 }
 
+/* Markdown styling */
+.message-content p {
+  margin: 0 0 12px 0;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-content strong {
+  font-weight: 600;
+  color: #fff;
+}
+
+.message-content em {
+  font-style: italic;
+}
+
+.message-content ul,
+.message-content ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.message-content li {
+  margin: 4px 0;
+}
+
+.message-content code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 13px;
+  color: #f0f0f0;
+}
+
+.message-content pre {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.message-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.message-content blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4,
+.message-content h5,
+.message-content h6 {
+  margin: 12px 0 8px 0;
+  font-weight: 600;
+  color: #fff;
+}
+
+.message-content h1 { font-size: 20px; }
+.message-content h2 { font-size: 18px; }
+.message-content h3 { font-size: 16px; }
+.message-content h4 { font-size: 14px; }
+
+.message-content a {
+  color: #10a37f;
+  text-decoration: none;
+}
+
+.message-content a:hover {
+  text-decoration: underline;
+}
+
+/* LaTeX/KaTeX styling */
+.message-content .katex {
+  font-size: 1.1em;
+}
+
+.message-content .katex-display {
+  margin: 12px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.message-content .katex-display > .katex {
+  text-align: left;
+}
+
 .message-content.streaming::after {
   content: '▊';
   animation: blink 1s infinite;

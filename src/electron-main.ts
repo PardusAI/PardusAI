@@ -276,8 +276,12 @@ function createWindow() {
     mainWindow = null;
   });
   
-  // Enable click-through by default, with forward option to detect when mouse is over interactive elements
-  mainWindow.setIgnoreMouseEvents(true, { forward: true });
+  // Set click-through based on user settings (disabled by default)
+  if (appSettings.clickThrough) {
+    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+  } else {
+    mainWindow.setIgnoreMouseEvents(false);
+  }
 }
 
 function createTray() {
