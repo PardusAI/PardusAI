@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  memory-bench:
+    image: node:20-alpine
+    container_name: memory-bench
+    working_dir: /app
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    volumes:
+      - .:/app
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ./tmp:/app/tmp
+    network_mode: host
+    command: sh -c "npm install && npm start"
+    restart: unless-stopped
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: memory-bench-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    # Pull the embedding model on startup
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        sleep 5
+        ollama pull embeddinggemma:latest
+        wait
+
+volumes:
+  ollama_data:
+    driver: local
+
+# Usage:
+# 1. Create .env file with OPENROUTER_API_KEY
+# 2. Run: docker-compose up -d
+# 3. View logs: docker-compose logs -f memory-bench
+# 4. Stop: docker-compose down
+

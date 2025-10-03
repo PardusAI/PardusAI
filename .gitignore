@@ -1,0 +1,37 @@
+# Build output
+dist/
+*.js
+*.js.map
+*.d.ts
+*.d.ts.map
+
+# Keep source files
+!src/**/*.ts
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+
+# Screenshots
+tmp/
+*.png
+!screenshot.png
+
+# Database
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*

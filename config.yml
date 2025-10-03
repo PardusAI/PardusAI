@@ -1,0 +1,94 @@
+# Memory Bench Configuration File
+# This file contains all configurable settings for the application
+
+# Application Settings
+app:
+  name: "Memory Bench"
+  version: "1.0.0"
+  description: "Screenshot Memory System with RAG"
+
+# Screenshot Capture Settings
+capture:
+  # Interval between screenshot captures in milliseconds
+  # This controls how long to wait before taking the next screenshot
+  # Default: 3000ms (3 seconds). Adjust this to change capture frequency.
+  # Lower values = more frequent screenshots (higher resource usage)
+  # Higher values = less frequent screenshots (lower resource usage)
+  interval: 500
+  # Processing delay before sending to AI (for rate limiting)
+  # This delay is added before processing each screenshot to avoid API rate limits
+  processing_delay: 1000
+  # Directory to store screenshots
+  output_directory: "tmp"
+  # Image similarity threshold for duplicate detection (0.0-1.0)
+  similarity_threshold: 0.95
+
+# AI Model Settings
+ai:
+  # OpenRouter API settings
+  openrouter:
+    base_url: "https://openrouter.ai/api/v1"
+    # Vision model for screenshot analysis
+    vision_model: "mistralai/pixtral-12b"
+    # Alternative model for terminal version
+    terminal_model: "x-ai/grok-4-fast:free"
+    # Request timeout in milliseconds
+    timeout: 60000
+    # Maximum number of retries for failed requests
+    max_retries: 2
+  
+  # Ollama settings for embeddings
+  ollama:
+    # Embedding model to use
+    model: "embeddinggemma:latest"
+    # Alternative: "mxbai-embed-large"
+    base_url: "http://localhost:11434"
+
+# RAG (Retrieval Augmented Generation) Settings
+rag:
+  # Number of top similar screenshots to retrieve
+  top_k: 5
+  # Minimum similarity score threshold (0.0-1.0)
+  min_similarity: 0.0
+
+# UI Settings
+ui:
+  # Window dimensions
+  window:
+    width_percentage: 100  # Percentage of screen width
+    height: 600
+    position: "bottom"  # bottom, top, center
+  
+  # Popup behavior
+  popup:
+    auto_hide: true
+    hide_delay: 30000  # milliseconds
+    show_memory_count: true
+  
+  # Tray icon settings
+  tray:
+    enabled: true
+    update_interval: 5000  # milliseconds
+
+# Keyboard Shortcuts
+shortcuts:
+  quit: "CommandOrControl+Q"
+  escape: "Escape"
+
+# Debug Settings
+debug:
+  enabled: false
+  verbose_logging: false
+  log_renderer_console: true
+
+# Dependencies
+dependencies:
+  required:
+    - ffmpeg  # For image comparison
+    - ollama  # For embeddings
+  optional: []
+
+# Environment Variables (reference)
+# These should be set in your .env file:
+# - OPENROUTER_API_KEY: Your OpenRouter API key
+
