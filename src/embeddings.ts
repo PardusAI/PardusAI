@@ -95,7 +95,7 @@ export async function retrieveTopK(
       // Time penalty: 0.1 * hours_old
       // More recent images get a higher score
       const hoursOld = (now - memory.time) / (1000 * 60 * 60);
-      const timePenalty = 0.1 * hoursOld;
+      const timePenalty = 0.01 * hoursOld;
       
       // Combined score: similarity minus time penalty
       const combinedScore = semanticSimilarity - timePenalty;
