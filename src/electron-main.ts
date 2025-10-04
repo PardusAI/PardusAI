@@ -69,7 +69,7 @@ let authState: AuthState = {
 // Application settings
 let appSettings = {
   alwaysOnTop: false,  // Disabled by default so window doesn't block other apps
-  clickThrough: false,  // Disabled by default so users can interact with the window
+  clickThrough: false,  // PERMANENTLY DISABLED - normal window behavior
   preventCapture: true,
   theme: 'dark' as 'dark' | 'light'
 };
@@ -418,12 +418,9 @@ function createWindow() {
     mainWindow = null;
   });
   
-  // Set click-through based on user settings (disabled by default)
-  if (appSettings.clickThrough) {
-    mainWindow.setIgnoreMouseEvents(true, { forward: true });
-  } else {
-    mainWindow.setIgnoreMouseEvents(false);
-  }
+  // Don't set click-through on window creation
+  // The renderer will manage it based on mouse position
+  mainWindow.setIgnoreMouseEvents(false);
 }
 
 function createTray() {
@@ -697,10 +694,10 @@ function createMainWindow(): BrowserWindow {
   let icon = nativeImage.createFromPath(iconPath);
 
   mainWindow = new BrowserWindow({
-    width: windowWidth || width,
-    height: windowHeight || 600,
-    x: 0,
-    y: config.ui.window.position === 'bottom' ? height - (windowHeight || 600) : 0,
+    width: 560,
+    height: 380,
+    x: Math.floor((width - 560) / 2),
+    y: height - 380,
     frame: false,
     transparent: true,
     alwaysOnTop: appSettings.alwaysOnTop,
@@ -736,8 +733,8 @@ function createMainWindow(): BrowserWindow {
   mainWindow.once('ready-to-show', () => {
     console.log('🔐 Main window ready to show');
     if (mainWindow) {
-      mainWindow.showInactive();  // Show without stealing focus
-      console.log('🔐 Main window shown (without focus)');
+      mainWindow.show();  // Show normally, can be clicked to focus
+      console.log('🔐 Main window shown');
     }
   });
 
@@ -745,12 +742,9 @@ function createMainWindow(): BrowserWindow {
     mainWindow = null;
   });
 
-  // Set click-through based on user settings
-  if (appSettings.clickThrough) {
-    mainWindow.setIgnoreMouseEvents(true, { forward: true });
-  } else {
-    mainWindow.setIgnoreMouseEvents(false);
-  }
+  // Don't set click-through on window creation
+  // The renderer will manage it based on mouse position
+  mainWindow.setIgnoreMouseEvents(false);
 
   // Handle external links - open in browser with confirmation
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

@@ -89,9 +89,9 @@ let isProcessing = false;
 let hidePopupTimeout: NodeJS.Timeout | null = null;
 let currentDatabases: any[] = [];
 let activeDatabase: any = null;
-let isCapturing = true; // Screenshot capture state
-let isDialogOpen = false; // Track if a dialog is currently open
-let isClickThroughEnabled = false; // Track if click-through mode is enabled
+let isCapturing = true;
+let isDialogOpen = false;
+let isClickThroughEnabled = false; // PERMANENTLY DISABLED - doesn't work on this system
 
 // Wait for libraries to be loaded
 window.addEventListener('DOMContentLoaded', () => {
@@ -181,6 +181,8 @@ function renderMarkdownWithLatex(content: string, targetElement: HTMLElement) {
 function showPromptDialog(message: string, defaultValue: string = ''): Promise<string | null> {
   return new Promise((resolve) => {
     isDialogOpen = true;
+    updateClickThrough();
+    
     const overlay = document.createElement('div');
     overlay.className = 'dialog-overlay';
     overlay.innerHTML = `
@@ -198,9 +200,6 @@ function showPromptDialog(message: string, defaultValue: string = ''): Promise<s
     
     document.body.appendChild(overlay);
     
-    // Disable click-through for dialog
-    window.electronAPI.setIgnoreMouseEvents(false);
-    
     const input = overlay.querySelector('.dialog-input') as HTMLInputElement;
     const cancelBtn = overlay.querySelector('.dialog-btn-cancel') as HTMLButtonElement;
     const confirmBtn = overlay.querySelector('.dialog-btn-confirm') as HTMLButtonElement;
@@ -211,12 +210,7 @@ function showPromptDialog(message: string, defaultValue: string = ''): Promise<s
     const cleanup = () => {
       isDialogOpen = false;
       document.body.removeChild(overlay);
-      // Re-enable click-through after dialog closes (only if click-through mode is enabled)
-      if (isClickThroughEnabled) {
-        setTimeout(() => {
-          window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
-        }, 100);
-      }
+      updateClickThrough();
     };
     
     const handleConfirm = () => {
@@ -254,6 +248,8 @@ function showPromptDialog(message: string, defaultValue: string = ''): Promise<s
 function showConfirmDialog(message: string): Promise<boolean> {
   return new Promise((resolve) => {
     isDialogOpen = true;
+    updateClickThrough();
+    
     const overlay = document.createElement('div');
     overlay.className = 'dialog-overlay';
     overlay.innerHTML = `
@@ -270,9 +266,6 @@ function showConfirmDialog(message: string): Promise<boolean> {
     
     document.body.appendChild(overlay);
     
-    // Disable click-through for dialog
-    window.electronAPI.setIgnoreMouseEvents(false);
-    
     const cancelBtn = overlay.querySelector('.dialog-btn-cancel') as HTMLButtonElement;
     const confirmBtn = overlay.querySelector('.dialog-btn-confirm') as HTMLButtonElement;
     
@@ -281,12 +274,7 @@ function showConfirmDialog(message: string): Promise<boolean> {
     const cleanup = () => {
       isDialogOpen = false;
       document.body.removeChild(overlay);
-      // Re-enable click-through after dialog closes (only if click-through mode is enabled)
-      if (isClickThroughEnabled) {
-        setTimeout(() => {
-          window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
-        }, 100);
-      }
+      updateClickThrough();
     };
     
     const handleConfirm = () => {
@@ -457,6 +445,9 @@ updateMemoryCount();
 updateDatabaseSelector();
 renderDatabaseList();
 loadSettings();
+
+// Don't enable click-through on startup - let the mouse enter/leave handlers manage it
+// This ensures the app is clickable when first loaded
 
 function showPopup() {
   console.log('👁️  UI: Showing chat popup...');
@@ -733,55 +724,47 @@ messageInput.addEventListener('keypress', (e) => {
   console.log('⌨️  Key pressed:', e.key);
 });
 
-// Handle mouse events for click-through behavior
-const interactiveElements = [chatForm, messageInput, sendButton, clearButton, dbSelectorBtn, settingsBtn, screenshotToggleBtn];
-
-// Track mouse over interactive elements  
-document.addEventListener('mousemove', (e) => {
-  // Don't change click-through state if a dialog is open
-  if (isDialogOpen) {
-    window.electronAPI.setIgnoreMouseEvents(false);
-    return;
-  }
-  
-  // Only apply click-through logic if the setting is enabled
+// Smart click-through management
+// CSS handles most of the work with pointer-events
+// We only need to manage Electron window-level click-through
+function updateClickThrough() {
   if (!isClickThroughEnabled) {
+    // Fully disable click-through - window captures all clicks
     window.electronAPI.setIgnoreMouseEvents(false);
     return;
   }
   
-  const target = e.target as HTMLElement;
-  
-  // Check if settings modal is visible - if so, never use click-through
-  if (settingsModal.classList.contains('visible')) {
+  // If modal/dialog is open, disable click-through temporarily
+  if (isDialogOpen || 
+      settingsModal.classList.contains('visible') || 
+      dbDropdown.classList.contains('visible')) {
     window.electronAPI.setIgnoreMouseEvents(false);
     return;
   }
   
-  // Check if database dropdown is visible - if so, never use click-through
-  if (dbDropdown.classList.contains('visible')) {
-    window.electronAPI.setIgnoreMouseEvents(false);
-    return;
-  }
-  
-  // Check if mouse is over the input container or any interactive elements
-  const inputContainer = document.querySelector('.input-container');
-  const isOverInputContainer = inputContainer && (inputContainer === target || inputContainer.contains(target));
-  
-  // Check if mouse is over visible chat popup
-  const isOverVisiblePopup = chatPopup.classList.contains('visible') && 
-    (chatPopup === target || chatPopup.contains(target));
-  
-  // Disable click-through if over any interactive area
-  if (isOverInputContainer || isOverVisiblePopup) {
-    window.electronAPI.setIgnoreMouseEvents(false);
-  } else {
-    // Enable click-through for transparent background areas
-    window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
-  }
+  // Enable smart click-through - CSS pointer-events handles the rest
+  window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
+}
+
+// Initial setup
+updateClickThrough();
+
+// Update on modal visibility changes
+const modalObserver = new MutationObserver(() => {
+  updateClickThrough();
 });
 
-console.log('🖱️  Click-through handler installed');
+modalObserver.observe(settingsModal, { 
+  attributes: true, 
+  attributeFilter: ['class'] 
+});
+
+modalObserver.observe(dbDropdown, { 
+  attributes: true, 
+  attributeFilter: ['class'] 
+});
+
+console.log('🖱️  Smart click-through enabled');
 
 // Set up streaming event listeners
 window.electronAPI.onAnswerStart((data) => {
@@ -986,10 +969,7 @@ alwaysOnTopToggle.addEventListener('change', async () => {
 clickThroughToggle.addEventListener('change', async () => {
   isClickThroughEnabled = clickThroughToggle.checked;
   await window.electronAPI.setClickThrough(clickThroughToggle.checked);
-  // Ensure mouse events are reset when disabling click-through
-  if (!isClickThroughEnabled) {
-    window.electronAPI.setIgnoreMouseEvents(false);
-  }
+  updateClickThrough();
 });
 
 // Prevent capture toggle
