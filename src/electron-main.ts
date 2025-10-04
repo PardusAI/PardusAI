@@ -9,15 +9,17 @@ import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
-import { chatWithImage, chatStream } from './model.js';
-import { retrieveTopK } from './embeddings.js';
-import { MemoryDatabase } from './database.js';
-import type { MemoryRecord } from './database.js';
-import { EmbeddingQueue } from './embeddingQueue.js';
-import { DatabaseManager } from './databaseManager.js';
-import { SCREENSHOT_DESCRIPTION_PROMPT, generateQuestionAnswerPrompt, formatImageContext, NO_MEMORIES_MESSAGE } from './prompts.js';
-import { config } from './config.js';
+import { chatWithImage, chatStream } from './core/model.js';
+import { retrieveTopK } from './utils/embeddings.js';
+import { MemoryDatabase } from './database/database.js';
+import type { MemoryRecord } from './database/database.js';
+import { EmbeddingQueue } from './utils/embeddingQueue.js';
+import { DatabaseManager } from './database/databaseManager.js';
+import { SCREENSHOT_DESCRIPTION_PROMPT, generateQuestionAnswerPrompt, formatImageContext, NO_MEMORIES_MESSAGE } from './core/prompts.js';
+import { config } from './core/config.js';
 import { loadSettings, saveSettings, updateSettings, type UserSettings } from './settingsManager.js';
+import { authManager } from './core/auth.js';
+import type { AuthState, User, LoginCredentials, RegisterCredentials, AuthResponse } from './types/auth.js';
 
 const execAsync = promisify(exec);
 
@@ -54,13 +56,20 @@ function getEmbeddingQueue(db: MemoryDatabase, dbId: string): EmbeddingQueue {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let authWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let appIcon: Electron.NativeImage | null = null;
 
+// Authentication state
+let authState: AuthState = {
+  isAuthenticated: false,
+  currentUser: null
+};
+
 // Application settings
 let appSettings = {
-  alwaysOnTop: true,
-  clickThrough: true,
+  alwaysOnTop: false,  // Disabled by default so window doesn't block other apps
+  clickThrough: false,  // Disabled by default so users can interact with the window
   preventCapture: true,
   theme: 'dark' as 'dark' | 'light'
 };
@@ -151,10 +160,11 @@ async function processScreenshot(imagePath: string): Promise<void> {
     const stats = db.getStats();
     safeLog(`💾 Saved! Total: ${stats.total} (${stats.embedded} embedded, ${stats.pending} pending)`);
     
-    // Update status in UI
+    // Update status in UI (without stealing focus)
     if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
       try {
         mainWindow.webContents.send('memory-count-update', stats.total);
+        // Don't steal focus when updating memory count
       } catch (err) {
         // Silently ignore IPC errors
       }
@@ -337,7 +347,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false
     },
-    title: 'Memory Bench'
+    title: 'Pardus AI'
   });
 
   // Prevent window from appearing in screenshots (based on settings)
@@ -442,7 +452,7 @@ function createTray() {
     
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'Memory Bench',
+        label: 'Pardus AI',
         enabled: false
       },
       {
@@ -470,7 +480,7 @@ function createTray() {
         }
       },
       {
-        label: 'Quit Memory Bench',
+        label: 'Quit Pardus AI',
         click: () => {
           safeLog(`🛑 Quit from tray menu. Total memories: ${stats.total}`);
           app.quit();
@@ -485,7 +495,7 @@ function createTray() {
   
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Memory Bench',
+      label: 'Pardus AI',
       enabled: false
     },
     {
@@ -509,7 +519,7 @@ function createTray() {
       }
     },
     {
-      label: 'Quit Memory Bench',
+      label: 'Quit Pardus AI',
       click: () => {
         safeLog(`🛑 Quit from tray menu.`);
         app.quit();
@@ -518,7 +528,7 @@ function createTray() {
   ]);
   
   tray.setContextMenu(contextMenu);
-  tray.setToolTip('Memory Bench - Screenshot Memory System');
+  tray.setToolTip('Pardus AI - Screenshot Memory System');
   
   // Update memory count in tray menu
   setInterval(() => {
@@ -527,42 +537,42 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
-  // Log config settings
-  safeLog('⚙️  Configuration loaded:');
-  safeLog(`   Screenshot interval: ${config.capture.interval}ms`);
-  safeLog(`   Processing delay: ${config.capture.processing_delay}ms`);
-  safeLog(`   Vision model: ${config.ai.openrouter.vision_model}`);
-  safeLog(`   Embedding model: ${config.ai.ollama.model}`);
-  
-  // Initialize database manager
-  await dbManager.initialize();
-  const db = await dbManager.getActiveDatabase();
-  if (db) {
-    const stats = db.getStats();
-    const activeMeta = dbManager.getActiveDatabaseMetadata();
-    safeLog(`📂 Database loaded: "${activeMeta?.name}" - ${stats.total} memories (${stats.embedded} embedded, ${stats.pending} pending)`);
-    
-    // Start embedding queue for active database
-    const activeDbId = dbManager.getActiveDatabaseId();
-    if (activeDbId) {
-      const queue = getEmbeddingQueue(db, activeDbId);
-      queue.start();
-      safeLog('🔄 Embedding queue started');
-    }
-  } else {
-    safeLog('⚠️  No active database found');
-  }
-  
-  // Ensure tmp directory exists before starting
-  const tmpDir = path.join(projectRoot, config.capture.output_directory);
   try {
-    await fs.access(tmpDir);
-  } catch {
-    await fs.mkdir(tmpDir, { recursive: true });
-  }
+    safeLog('🚀 Pardus AI starting up...');
+    safeLog(`⚙️  Configuration loaded:`);
+    safeLog(`   Screenshot interval: ${config.capture.interval}ms`);
+    safeLog(`   Processing delay: ${config.capture.processing_delay}ms`);
+    safeLog(`   Vision model: ${config.ai.openrouter.vision_model}`);
+    safeLog(`   Embedding model: ${config.ai.ollama.model}`);
+    
+    // Ensure tmp directory exists before starting
+    const tmpDir = path.join(projectRoot, config.capture.output_directory);
+    try {
+      await fs.access(tmpDir);
+    } catch {
+      await fs.mkdir(tmpDir, { recursive: true });
+    }
 
-  createWindow();
+  // Initialize authentication and show auth window
+  console.log('🔐 Initializing authentication...');
+  await authManager.initialize();
+  
+  // Check if default admin exists
+  const hasUsers = authManager.hasUsers();
+  console.log('🔐 Has users:', hasUsers);
+  if (!hasUsers) {
+    console.log('🔐 Creating default admin user...');
+    await authManager.createDefaultAdminIfNeeded();
+    console.log('🔐 Default admin user created (username: admin, password: admin)');
+  }
+  
+  console.log('🔐 Authentication initialized, showing auth window...');
+  showAuthWindow();
   createTray();
+  console.log('🔐 Auth window should be visible now');
+  } catch (error) {
+    console.error('❌ Error during app initialization:', error);
+  }
 
   // Register global keyboard shortcuts
   globalShortcut.register('CommandOrControl+Q', () => {
@@ -572,12 +582,15 @@ app.whenReady().then(async () => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      if (authState.isAuthenticated) {
+        createMainWindow();
+      } else {
+        showAuthWindow();
+      }
     }
   });
 
-  // Start continuous screenshot capture
-  captureLoop().catch(console.error);
+  // Screenshot capture will be started after successful authentication
 });
 
 app.on('window-all-closed', () => {
@@ -599,8 +612,336 @@ app.on('will-quit', () => {
   }
 });
 
+// Authentication functions
+function createAuthWindow(): BrowserWindow {
+  console.log('🔐 Creating auth window with options...');
+  authWindow = new BrowserWindow({
+    width: 450,
+    height: 600,
+    resizable: false,
+    alwaysOnTop: true,
+    frame: false,
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: true
+    }
+  });
+
+  console.log('🔐 Loading login.html...');
+  // Load the login page
+  authWindow.loadFile('login.html');
+
+  authWindow.once('ready-to-show', () => {
+    console.log('🔐 Auth window ready to show');
+    if (authWindow) {
+      authWindow.show();
+      authWindow.focus();
+    }
+  });
+
+  authWindow.on('closed', () => {
+    console.log('🔐 Auth window closed');
+    authWindow = null;
+  });
+
+  authWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('❌ Failed to load auth window:', errorCode, errorDescription);
+  });
+
+  authWindow.webContents.on('did-finish-load', () => {
+    console.log('✅ Auth window loaded successfully');
+  });
+
+  return authWindow;
+}
+
+function showAuthWindow(): void {
+  try {
+    console.log('🔐 Creating/showing auth window...');
+    if (!authWindow) {
+      console.log('🔐 Creating new auth window...');
+      createAuthWindow();
+    } else {
+      console.log('🔐 Showing existing auth window...');
+      authWindow.show();
+      authWindow.focus();
+    }
+  } catch (error) {
+    console.error('❌ Error showing auth window:', error);
+  }
+}
+
+function hideAuthWindow(): void {
+  if (authWindow) {
+    authWindow.hide();
+  }
+}
+
+function createMainWindow(): BrowserWindow {
+  console.log('🔐 Creating main window after successful login...');
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  console.log('🔐 Screen size:', { width, height });
+  console.log('🔐 Config:', config.ui.window);
+  const windowWidth = Math.floor(width * (config.ui.window.width_percentage / 100));
+  const windowHeight = config.ui.window.height;
+  console.log('🔐 Calculated window size:', { windowWidth, windowHeight });
+
+  // Load app icon - try PNG format
+  let iconPath = path.join(projectRoot, 'assets', 'icon-256.png');
+  if (!existsSync(iconPath)) {
+    iconPath = path.join(projectRoot, 'assets', 'icon.png');
+  }
+  let icon = nativeImage.createFromPath(iconPath);
+
+  mainWindow = new BrowserWindow({
+    width: windowWidth || width,
+    height: windowHeight || 600,
+    x: 0,
+    y: config.ui.window.position === 'bottom' ? height - (windowHeight || 600) : 0,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: appSettings.alwaysOnTop,
+    skipTaskbar: false,
+    resizable: false,
+    show: false,
+    icon: icon,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: true
+    }
+  });
+
+  // Prevent window from appearing in screenshots (based on settings)
+  mainWindow.setContentProtection(appSettings.preventCapture);
+  
+  // Make window visible on all workspaces/desktops
+  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  console.log('🔐 Loading index.html in main window...');
+  mainWindow.loadFile('index.html');
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('🔐 Main window finished loading');
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('❌ Main window failed to load:', errorCode, errorDescription);
+  });
+
+  mainWindow.once('ready-to-show', () => {
+    console.log('🔐 Main window ready to show');
+    if (mainWindow) {
+      mainWindow.showInactive();  // Show without stealing focus
+      console.log('🔐 Main window shown (without focus)');
+    }
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+
+  // Set click-through based on user settings
+  if (appSettings.clickThrough) {
+    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+  } else {
+    mainWindow.setIgnoreMouseEvents(false);
+  }
+
+  // Handle external links - open in browser with confirmation
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    console.log('🔗 External link clicked:', url);
+    if (mainWindow && appIcon) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        buttons: ['Open in Browser', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1,
+        title: 'Open External Link',
+        message: `Do you want to open this link in your browser?`,
+        detail: url,
+        icon: appIcon
+      }).then((result: any) => {
+        if (result.response === 0) {
+          shell.openExternal(url);
+        }
+      });
+    }
+    return { action: 'deny' };
+  });
+
+  return mainWindow;
+}
+
+// Authentication IPC handlers
+ipcMain.handle('check-first-time', async () => {
+  console.log('🔐 IPC: check-first-time called');
+  try {
+    await authManager.initialize();
+    const hasUsers = authManager.hasUsers();
+    console.log('🔐 IPC: hasUsers:', hasUsers);
+    
+    // Create default admin user if no users exist
+    if (!hasUsers) {
+      console.log('🔐 IPC: Creating default admin user...');
+      await authManager.createDefaultAdminIfNeeded();
+      console.log('🔐 IPC: Default admin user created');
+    }
+    
+    return !hasUsers;
+  } catch (error) {
+    console.error('🔐 IPC: Error checking first time:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('login', async (event, username: string, password: string) => {
+  console.log('🔐 IPC: login called with username:', username);
+  try {
+    const credentials: LoginCredentials = { username, password };
+    const response: AuthResponse = await authManager.login(credentials);
+    console.log('🔐 IPC: login response:', response);
+    
+    if (response.success && response.user && response.token) {
+      authState = {
+        isAuthenticated: true,
+        currentUser: response.user,
+        sessionToken: response.token
+      };
+      console.log('🔐 IPC: Login successful, updating auth state');
+      
+      // Hide auth window and show main window
+      hideAuthWindow();
+      
+      // Initialize database manager after successful authentication
+      console.log('🔐 IPC: Initializing database manager...');
+      await dbManager.initialize();
+      const db = await dbManager.getActiveDatabase();
+      if (db) {
+        const stats = db.getStats();
+        const activeMeta = dbManager.getActiveDatabaseMetadata();
+        safeLog(`📂 Database loaded: "${activeMeta?.name}" - ${stats.total} memories (${stats.embedded} embedded, ${stats.pending} pending)`);
+        
+        // Start embedding queue for active database
+        const activeDbId = dbManager.getActiveDatabaseId();
+        if (activeDbId) {
+          const queue = getEmbeddingQueue(db, activeDbId);
+          queue.start();
+          safeLog('🔄 Embedding queue started');
+        }
+      } else {
+        safeLog('⚠️  No active database found');
+      }
+      
+      try {
+        createMainWindow();
+        console.log('🔐 IPC: Main window creation initiated');
+      } catch (error) {
+        console.error('🔐 IPC: Error creating main window:', error);
+      }
+      
+      // Start screenshot capture loop
+      captureLoop().catch(console.error);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('🔐 IPC: Login error:', error);
+    return { success: false, error: 'An error occurred during login' };
+  }
+});
+
+ipcMain.handle('register', async (event, username: string, email: string, password: string, confirmPassword: string) => {
+  console.log('🔐 IPC: register called with username:', username, 'email:', email);
+  try {
+    const credentials: RegisterCredentials = { username, email, password, confirmPassword };
+    const response: AuthResponse = await authManager.register(credentials);
+    console.log('🔐 IPC: register response:', response);
+    
+    if (response.success && response.user && response.token) {
+      authState = {
+        isAuthenticated: true,
+        currentUser: response.user,
+        sessionToken: response.token
+      };
+      console.log('🔐 IPC: Registration successful, updating auth state');
+      
+      // Hide auth window and show main window
+      hideAuthWindow();
+      
+      // Initialize database manager after successful authentication
+      console.log('🔐 IPC: Initializing database manager...');
+      await dbManager.initialize();
+      const db = await dbManager.getActiveDatabase();
+      if (db) {
+        const stats = db.getStats();
+        const activeMeta = dbManager.getActiveDatabaseMetadata();
+        safeLog(`📂 Database loaded: "${activeMeta?.name}" - ${stats.total} memories (${stats.embedded} embedded, ${stats.pending} pending)`);
+        
+        // Start embedding queue for active database
+        const activeDbId = dbManager.getActiveDatabaseId();
+        if (activeDbId) {
+          const queue = getEmbeddingQueue(db, activeDbId);
+          queue.start();
+          safeLog('🔄 Embedding queue started');
+        }
+      } else {
+        safeLog('⚠️  No active database found');
+      }
+      
+      try {
+        createMainWindow();
+        console.log('🔐 IPC: Main window creation initiated');
+      } catch (error) {
+        console.error('🔐 IPC: Error creating main window:', error);
+      }
+      
+      // Start screenshot capture loop
+      captureLoop().catch(console.error);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('🔐 IPC: Registration error:', error);
+    return { success: false, error: 'An error occurred during registration' };
+  }
+});
+
+ipcMain.handle('get-auth-state', async () => {
+  return authState;
+});
+
+ipcMain.handle('logout', async () => {
+  authState = {
+    isAuthenticated: false,
+    currentUser: null
+  };
+  
+  // Close main window
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.close();
+    mainWindow = null;
+  }
+  
+  // Stop screenshot capture by setting flag
+  isCapturing = false;
+  
+  // Show auth window
+  showAuthWindow();
+  
+  return { success: true };
+});
+
 // IPC handlers
 ipcMain.handle('ask-question', async (event, question: string) => {
+  // Check authentication
+  if (!authState.isAuthenticated) {
+    return { error: 'Authentication required' };
+  }
   console.log('\n' + '='.repeat(70));
   console.log(`📨 RECEIVED MESSAGE FROM UI`);
   console.log(`   Question: "${question}"`);
@@ -694,6 +1035,11 @@ ipcMain.handle('ask-question', async (event, question: string) => {
 });
 
 ipcMain.handle('get-memory-count', async () => {
+  // Check authentication
+  if (!authState.isAuthenticated) {
+    return 0;
+  }
+  
   const db = await dbManager.getActiveDatabase();
   return db ? db.getStats().total : 0;
 });

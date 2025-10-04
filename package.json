@@ -1,7 +1,7 @@
 {
-  "name": "memory-bench",
+  "name": "pardus-ai",
   "version": "1.0.0",
-  "description": "Memory Bench - Chat with your screen history",
+  "description": "Pardus AI - Chat with your screen history",
   "main": "dist/electron-main.js",
   "scripts": {
     "start": "npm run build && electron .",
@@ -40,8 +40,8 @@
     "screenshot-desktop": "^1.15.2"
   },
   "build": {
-    "appId": "com.memory-bench.app",
-    "productName": "Memory Bench",
+    "appId": "com.pardus-ai.app",
+    "productName": "Pardus AI",
     "files": [
       "dist/**/*",
       "index.html",

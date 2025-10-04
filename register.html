@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pardus AI - Register</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: rgba(30, 31, 41, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #ffffff;
+        }
+
+        .auth-card {
+            background: rgba(52, 53, 65, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+            margin: 1rem;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .auth-header h1 {
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .auth-header p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            font-size: 1rem;
+            color: #ffffff;
+            transition: border-color 0.2s, background-color 0.2s;
+            box-sizing: border-box;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-group input.error {
+            border-color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: none;
+        }
+
+        .success-message {
+            color: #51cf66;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: none;
+        }
+
+        .auth-button {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .auth-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .auth-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .auth-footer a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .auth-footer a:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+
+        .password-requirements {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 0.25rem;
+        }
+
+        .password-requirements ul {
+            margin: 0.25rem 0;
+            padding-left: 1.2rem;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Pardus AI</h1>
+                <p>Create your account</p>
+            </div>
+
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                    <div class="error-message" id="usernameError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email (optional)</label>
+                    <input type="email" id="email" name="email" autocomplete="email">
+                    <div class="error-message" id="emailError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required autocomplete="new-password">
+                    <div class="password-requirements">
+                        Password must be at least 6 characters long
+                    </div>
+                    <div class="error-message" id="passwordError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password">
+                    <div class="error-message" id="confirmPasswordError"></div>
+                </div>
+
+                <div class="error-message" id="registerError"></div>
+                <div class="success-message" id="registerSuccess"></div>
+
+                <button type="submit" class="auth-button" id="registerButton">
+                    <span id="registerButtonText">Create Account</span>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Already have an account? <a href="#" id="showLogin">Sign in here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class RegisterPage {
+            constructor() {
+                this.registerForm = document.getElementById('registerForm');
+                this.usernameInput = document.getElementById('username');
+                this.emailInput = document.getElementById('email');
+                this.passwordInput = document.getElementById('password');
+                this.confirmPasswordInput = document.getElementById('confirmPassword');
+                this.registerButton = document.getElementById('registerButton');
+                this.registerButtonText = document.getElementById('registerButtonText');
+                this.showLoginLink = document.getElementById('showLogin');
+
+                this.initializeEventListeners();
+            }
+
+            initializeEventListeners() {
+                this.registerForm.addEventListener('submit', (e) => this.handleRegister(e));
+                this.showLoginLink.addEventListener('click', (e) => this.showLogin(e));
+                
+                // Clear errors on input
+                this.usernameInput.addEventListener('input', () => this.clearError('username'));
+                this.emailInput.addEventListener('input', () => this.clearError('email'));
+                this.passwordInput.addEventListener('input', () => {
+                    this.clearError('password');
+                    this.validatePasswordMatch();
+                });
+                this.confirmPasswordInput.addEventListener('input', () => {
+                    this.clearError('confirmPassword');
+                    this.validatePasswordMatch();
+                });
+            }
+
+            async handleRegister(e) {
+                e.preventDefault();
+                
+                const username = this.usernameInput.value.trim();
+                const email = this.emailInput.value.trim();
+                const password = this.passwordInput.value;
+                const confirmPassword = this.confirmPasswordInput.value;
+
+                // Basic validation
+                if (!username) {
+                    this.showError('username', 'Username is required');
+                    return;
+                }
+
+                if (username.length < 3) {
+                    this.showError('username', 'Username must be at least 3 characters long');
+                    return;
+                }
+
+                if (email && !this.isValidEmail(email)) {
+                    this.showError('email', 'Please enter a valid email address');
+                    return;
+                }
+
+                if (!password) {
+                    this.showError('password', 'Password is required');
+                    return;
+                }
+
+                if (password.length < 6) {
+                    this.showError('password', 'Password must be at least 6 characters long');
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    this.showError('confirmPassword', 'Passwords do not match');
+                    return;
+                }
+
+                this.setLoading(true);
+                this.clearError('register');
+                this.clearError('registerSuccess');
+
+                try {
+                    const response = await window.electronAPI.register(username, email, password, confirmPassword);
+                    
+                    if (response.success) {
+                        this.showSuccess('registerSuccess', 'Account created successfully! Redirecting to login...');
+                        setTimeout(() => {
+                            window.location.href = 'login.html';
+                        }, 2000);
+                    } else {
+                        this.showError('register', response.error || 'Registration failed');
+                    }
+                } catch (error) {
+                    this.showError('register', 'An error occurred during registration');
+                    console.error('Registration error:', error);
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            showLogin(e) {
+                e.preventDefault();
+                window.location.href = 'login.html';
+            }
+
+            validatePasswordMatch() {
+                const password = this.passwordInput.value;
+                const confirmPassword = this.confirmPasswordInput.value;
+                
+                if (confirmPassword && password !== confirmPassword) {
+                    this.showError('confirmPassword', 'Passwords do not match');
+                } else {
+                    this.clearError('confirmPassword');
+                }
+            }
+
+            isValidEmail(email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return emailRegex.test(email);
+            }
+
+            setLoading(loading) {
+                this.registerButton.disabled = loading;
+                if (loading) {
+                    this.registerButtonText.innerHTML = '<span class="loading"></span> Creating Account...';
+                } else {
+                    this.registerButtonText.textContent = 'Create Account';
+                }
+            }
+
+            showError(field, message) {
+                const errorElement = document.getElementById(`${field}Error`);
+                const inputElement = document.getElementById(field);
+                
+                if (errorElement) {
+                    errorElement.textContent = message;
+                    errorElement.style.display = 'block';
+                }
+                
+                if (inputElement) {
+                    inputElement.classList.add('error');
+                }
+            }
+
+            showSuccess(field, message) {
+                const successElement = document.getElementById(field);
+                
+                if (successElement) {
+                    successElement.textContent = message;
+                    successElement.style.display = 'block';
+                }
+            }
+
+            clearError(field) {
+                const errorElement = document.getElementById(`${field}Error`);
+                const inputElement = document.getElementById(field);
+                
+                if (errorElement) {
+                    errorElement.textContent = '';
+                    errorElement.style.display = 'none';
+                }
+                
+                if (inputElement) {
+                    inputElement.classList.remove('error');
+                }
+            }
+        }
+
+        // Initialize register page when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new RegisterPage();
+        });
+    </script>
+</body>
+</html>

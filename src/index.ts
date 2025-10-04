@@ -7,12 +7,12 @@ import { promisify } from 'util';
 import fs from 'fs/promises';
 import readline from 'readline';
 import OpenAI from 'openai';
-import { chatWithImage } from './model.js';
-import { retrieveTopK } from './embeddings.js';
-import { MemoryDatabase } from './database.js';
-import { EmbeddingQueue } from './embeddingQueue.js';
-import { SCREENSHOT_DESCRIPTION_PROMPT, generateQuestionAnswerPrompt, formatImageContext } from './prompts.js';
-import { config } from './config.js';
+import { chatWithImage } from './core/model.js';
+import { retrieveTopK } from './utils/embeddings.js';
+import { MemoryDatabase } from './database/database.js';
+import { EmbeddingQueue } from './utils/embeddingQueue.js';
+import { SCREENSHOT_DESCRIPTION_PROMPT, generateQuestionAnswerPrompt, formatImageContext } from './core/prompts.js';
+import { config } from './core/config.js';
 
 const execAsync = promisify(exec);
 
