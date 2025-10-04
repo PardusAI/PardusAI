@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, globalShortcut, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, globalShortcut, Tray, Menu, nativeImage, shell, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -6,6 +6,7 @@ import screenshot from 'screenshot-desktop';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import { chatWithImage, chatStream } from './model.js';
@@ -16,6 +17,7 @@ import { EmbeddingQueue } from './embeddingQueue.js';
 import { DatabaseManager } from './databaseManager.js';
 import { SCREENSHOT_DESCRIPTION_PROMPT, generateQuestionAnswerPrompt, formatImageContext, NO_MEMORIES_MESSAGE } from './prompts.js';
 import { config } from './config.js';
+import { loadSettings, saveSettings, updateSettings, type UserSettings } from './settingsManager.js';
 
 const execAsync = promisify(exec);
 
@@ -36,6 +38,7 @@ if (!process.env.OPENROUTER_API_KEY) {
 
 // Initialize database manager
 const DATA_DIR = path.join(projectRoot, 'data');
+const LOGS_DIR = path.join(projectRoot, 'logs');
 const dbManager = new DatabaseManager(DATA_DIR);
 
 // Embedding queue map - one queue per database
@@ -52,12 +55,14 @@ function getEmbeddingQueue(db: MemoryDatabase, dbId: string): EmbeddingQueue {
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let appIcon: Electron.NativeImage | null = null;
 
 // Application settings
 let appSettings = {
   alwaysOnTop: true,
   clickThrough: true,
-  preventCapture: true
+  preventCapture: true,
+  theme: 'dark' as 'dark' | 'light'
 };
 
 // Screenshot capture control
@@ -187,14 +192,23 @@ async function askWithImagesStreaming(
     });
   }
 
-  const openrouter = new OpenAI({
-    baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: process.env.OPENROUTER_API_KEY,
+  // Get API settings
+  const apiSettings = await loadSettings();
+  const apiKey = await apiSettings.apiKeys[apiSettings.apiProvider];
+  const baseURL = apiSettings.baseUrls[apiSettings.apiProvider];
+  
+  if (!apiKey) {
+    throw new Error(`No API key configured for provider: ${apiSettings.apiProvider}`);
+  }
+  
+  const aiClient = new OpenAI({
+    baseURL: baseURL,
+    apiKey: apiKey,
   });
 
-  safeLog('🤖 Streaming from OpenRouter...');
-  const stream = await openrouter.chat.completions.create({
-    model: config.ai.openrouter.vision_model,
+  safeLog(`🤖 Streaming from ${apiSettings.apiProvider}...`);
+  const stream = await aiClient.chat.completions.create({
+    model: apiSettings.models.vision,
     messages: [
       {
         role: 'user',
@@ -214,6 +228,53 @@ async function askWithImagesStreaming(
   }
   
   safeLog(`✅ Streaming complete (${totalChars} chars)`);
+}
+
+// Log trajectory to JSON file
+async function logTrajectory(question: string, topResults: Array<{ memory: any; similarity: number }>, answer: string) {
+  try {
+    // Ensure logs directory exists
+    try {
+      await fs.access(LOGS_DIR);
+    } catch {
+      await fs.mkdir(LOGS_DIR, { recursive: true });
+    }
+    
+    const timestamp = Date.now();
+    const logEntry = {
+      timestamp,
+      datetime: new Date(timestamp).toISOString(),
+      question,
+      relevant_screenshots: topResults.map((result, idx) => ({
+        rank: idx + 1,
+        image_path: result.memory.imageUrl,
+        description: result.memory.description,
+        similarity: result.similarity,
+        captured_at: new Date(result.memory.time).toISOString()
+      })),
+      answer,
+      total_screenshots_searched: topResults.length
+    };
+    
+    // Append to daily log file
+    const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const logFilePath = path.join(LOGS_DIR, `trajectory_${dateStr}.json`);
+    
+    let logs = [];
+    try {
+      const existingData = await fs.readFile(logFilePath, 'utf-8');
+      logs = JSON.parse(existingData);
+    } catch {
+      // File doesn't exist yet, start with empty array
+    }
+    
+    logs.push(logEntry);
+    await fs.writeFile(logFilePath, JSON.stringify(logs, null, 2), 'utf-8');
+    
+    safeLog(`📝 Trajectory logged to: ${path.basename(logFilePath)}`);
+  } catch (err) {
+    safeError('⚠️  Failed to log trajectory:', err);
+  }
 }
 
 async function captureLoop(): Promise<void> {
@@ -239,6 +300,27 @@ async function captureLoop(): Promise<void> {
 function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   
+  // Load app icon - try PNG format
+  let iconPath = path.join(projectRoot, 'assets', 'icon-256.png');
+  if (!existsSync(iconPath)) {
+    iconPath = path.join(projectRoot, 'assets', 'icon.png');
+  }
+  console.log('🔍 Icon path:', iconPath);
+  console.log('🔍 Icon exists:', existsSync(iconPath));
+  
+  // Try to create icon from file
+  let icon = nativeImage.createFromPath(iconPath);
+  console.log('🔍 Icon loaded:', !icon.isEmpty());
+  console.log('🔍 Icon size:', icon.getSize());
+  
+  // Check if icon loaded successfully
+  if (icon.isEmpty()) {
+    console.log('⚠️  Icon failed to load');
+  }
+  
+  // Store icon globally for use in dialogs
+  appIcon = icon;
+  
   mainWindow = new BrowserWindow({
     width: width,
     height: 600,
@@ -248,7 +330,8 @@ function createWindow() {
     transparent: true,
     alwaysOnTop: appSettings.alwaysOnTop,
     resizable: false,
-    skipTaskbar: true,
+    skipTaskbar: false,
+    icon: icon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -265,6 +348,55 @@ function createWindow() {
 
   // Load from root directory
   mainWindow.loadFile(path.join(projectRoot, 'index.html'));
+  
+  // Handle external links - open in browser with confirmation
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    console.log('🔗 External link clicked:', url);
+    // Show confirmation dialog
+    if (mainWindow && appIcon) {
+      dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      buttons: ['Open in Browser', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Open External Link',
+      message: `Do you want to open this link in your browser?`,
+      detail: url,
+      icon: appIcon
+      }).then((result: any) => {
+        if (result.response === 0) {
+          shell.openExternal(url);
+        }
+      });
+    }
+    return { action: 'deny' };
+  });
+  
+  // Also handle navigation to external URLs
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    const parsedUrl = new URL(navigationUrl);
+    if (parsedUrl.origin !== 'file://') {
+      event.preventDefault();
+      console.log('🔗 Navigation to external URL:', navigationUrl);
+      // Show confirmation dialog
+      if (mainWindow && appIcon) {
+        dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        buttons: ['Open in Browser', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1,
+        title: 'Open External Link',
+        message: `Do you want to open this link in your browser?`,
+        detail: navigationUrl,
+        icon: appIcon
+        }).then((result: any) => {
+          if (result.response === 0) {
+            shell.openExternal(navigationUrl);
+          }
+        });
+      }
+    }
+  });
 
   // Forward renderer console logs to main process terminal
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
@@ -285,34 +417,22 @@ function createWindow() {
 }
 
 function createTray() {
-  // Create a simple tray icon (16x16 template image)
-  const icon = nativeImage.createEmpty();
-  const size = 16;
-  const canvas = {
-    width: size,
-    height: size,
-  };
-  
-  // Create a simple circle icon
-  const iconData = Buffer.alloc(size * size * 4);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 4;
-      const dx = x - size / 2;
-      const dy = y - size / 2;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      if (dist < size / 2 - 1) {
-        iconData[i] = 0;     // R
-        iconData[i + 1] = 0; // G
-        iconData[i + 2] = 0; // B
-        iconData[i + 3] = 255; // A
-      }
-    }
+  // Load the app icon for tray
+  let iconPath = path.join(projectRoot, 'assets', 'icon-256.png');
+  if (!existsSync(iconPath)) {
+    iconPath = path.join(projectRoot, 'assets', 'icon.png');
   }
+  console.log('🔍 Tray icon path:', iconPath);
+  console.log('🔍 Tray icon exists:', existsSync(iconPath));
   
-  const trayIcon = nativeImage.createFromBuffer(iconData, { width: size, height: size });
-  tray = new Tray(trayIcon);
+  const trayIcon = nativeImage.createFromPath(iconPath);
+  console.log('🔍 Tray icon loaded:', !trayIcon.isEmpty());
+  console.log('🔍 Tray icon size:', trayIcon.getSize());
+  
+  // Resize to appropriate tray icon size (16x16 or 32x32 depending on system)
+  const resizedIcon = trayIcon.resize({ width: 16, height: 16 });
+  console.log('🔍 Resized tray icon size:', resizedIcon.getSize());
+  tray = new Tray(resizedIcon);
   
   async function updateTrayMenu() {
     const db = await dbManager.getActiveDatabase();
@@ -524,7 +644,7 @@ ipcMain.handle('ask-question', async (event, question: string) => {
       console.log(`   ${mem.index}. [${mem.date}] Similarity: ${mem.similarity}`);
     });
     
-    // Send initial response with metadata
+    // Send initial response with metadata (memory info won't be displayed in UI)
     event.sender.send('answer-start', {
       relevantMemories,
       totalMemories: stats.total
@@ -532,10 +652,17 @@ ipcMain.handle('ask-question', async (event, question: string) => {
     
     console.log('\n🤖 Step 2: Streaming AI answer...');
     
+    // Collect full answer for logging
+    let fullAnswer = '';
+    
     // Stream the answer
     await askWithImagesStreaming(question, topResults, (chunk) => {
+      fullAnswer += chunk;
       event.sender.send('answer-chunk', chunk);
     });
+    
+    // Log trajectory to JSON file
+    logTrajectory(question, topResults, fullAnswer).catch(() => {});
     
     // Send completion signal
     event.sender.send('answer-complete');
@@ -731,5 +858,110 @@ ipcMain.handle('stop-capture', async () => {
 
 ipcMain.handle('get-capture-status', async () => {
   return isCapturing;
+});
+
+// Theme handler
+ipcMain.handle('set-theme', async (event, theme: 'dark' | 'light') => {
+  appSettings.theme = theme;
+});
+
+// API Settings handlers
+ipcMain.handle('get-api-settings', async () => {
+  try {
+    const settings = await loadSettings();
+    // Don't send the full API keys to renderer for security
+    // Send masked versions
+    return {
+      apiProvider: settings.apiProvider,
+      apiKeys: {
+        openrouter: settings.apiKeys.openrouter ? '••••••' + settings.apiKeys.openrouter.slice(-4) : '',
+        openai: settings.apiKeys.openai ? '••••••' + settings.apiKeys.openai.slice(-4) : '',
+        anthropic: settings.apiKeys.anthropic ? '••••••' + settings.apiKeys.anthropic.slice(-4) : '',
+      },
+      models: settings.models,
+      baseUrls: settings.baseUrls,
+    };
+  } catch (err) {
+    console.error('Failed to load API settings:', err);
+    return null;
+  }
+});
+
+ipcMain.handle('save-api-settings', async (event, settings: Partial<UserSettings>) => {
+  try {
+    const currentSettings = await loadSettings();
+    
+    // If API key is masked (starts with •), don't update it - keep current value
+    if (settings.apiKeys) {
+      const updatedKeys: any = {};
+      
+      if (settings.apiKeys.openrouter) {
+        updatedKeys.openrouter = settings.apiKeys.openrouter.startsWith('••••••') 
+          ? currentSettings.apiKeys.openrouter 
+          : settings.apiKeys.openrouter;
+      }
+      if (settings.apiKeys.openai) {
+        updatedKeys.openai = settings.apiKeys.openai.startsWith('••••••')
+          ? currentSettings.apiKeys.openai
+          : settings.apiKeys.openai;
+      }
+      if (settings.apiKeys.anthropic) {
+        updatedKeys.anthropic = settings.apiKeys.anthropic.startsWith('••••••')
+          ? currentSettings.apiKeys.anthropic
+          : settings.apiKeys.anthropic;
+      }
+      
+      settings.apiKeys = updatedKeys;
+    }
+    
+    await updateSettings(settings);
+    safeLog('💾 API settings saved successfully');
+    
+    return { success: true };
+  } catch (err) {
+    safeError('❌ Failed to save API settings:', err);
+    return { 
+      success: false, 
+      message: err instanceof Error ? err.message : 'Failed to save settings' 
+    };
+  }
+});
+
+// Handle external URL opening with confirmation
+ipcMain.handle('open-external-url', async (event, url: string) => {
+  try {
+    if (!mainWindow) {
+      return { success: false, message: 'Main window not available' };
+    }
+    
+    const dialogOptions: any = {
+      type: 'question',
+      buttons: ['Open in Browser', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Open External Link',
+      message: `Do you want to open this link in your browser?`,
+      detail: url
+    };
+    
+    if (appIcon) {
+      dialogOptions.icon = appIcon;
+    }
+    
+    const result: any = await dialog.showMessageBox(mainWindow, dialogOptions);
+    
+    if (result.response === 0) {
+      shell.openExternal(url);
+      return { success: true };
+    } else {
+      return { success: false, cancelled: true };
+    }
+  } catch (err) {
+    safeError('❌ Failed to open external URL:', err);
+    return { 
+      success: false, 
+      message: err instanceof Error ? err.message : 'Failed to open URL' 
+    };
+  }
 });
 

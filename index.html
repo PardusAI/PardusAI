@@ -27,6 +27,64 @@
           </button>
         </div>
         <div class="settings-body">
+          <!-- API Settings Section -->
+          <div class="settings-section">
+            <h4>API Configuration</h4>
+            <div class="setting-item">
+              <div class="setting-info">
+                <label for="api-provider">Provider</label>
+                <p>Select your AI API provider</p>
+              </div>
+              <select id="api-provider" class="setting-select">
+                <option value="openrouter">OpenRouter</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <label for="api-key">API Key</label>
+                <p>Your API key for the selected provider</p>
+              </div>
+              <input type="password" id="api-key" class="setting-input" placeholder="Enter API key...">
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <label for="vision-model">Vision Model</label>
+                <p>Model for image understanding</p>
+              </div>
+              <input type="text" id="vision-model" class="setting-input" placeholder="e.g., mistralai/pixtral-12b">
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <label for="base-url">Base URL</label>
+                <p>API endpoint URL</p>
+              </div>
+              <input type="text" id="base-url" class="setting-input" placeholder="https://...">
+            </div>
+            <div class="setting-item">
+              <button id="save-api-settings" class="save-btn">Save API Settings</button>
+            </div>
+          </div>
+          
+          <!-- UI Settings Section -->
+          <div class="settings-section">
+            <h4>Interface</h4>
+            <div class="setting-item">
+              <div class="setting-info">
+                <label for="theme-toggle">Light Mode</label>
+                <p>Use transparent light theme instead of dark theme</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="theme-toggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          </div>
+          
+          <!-- Window Settings Section -->
+          <div class="settings-section">
+            <h4>Window Behavior</h4>
           <div class="setting-item">
             <div class="setting-info">
               <label for="always-on-top">Always on Top</label>
@@ -56,6 +114,7 @@
               <input type="checkbox" id="prevent-capture" checked>
               <span class="toggle-slider"></span>
             </label>
+          </div>
           </div>
         </div>
       </div>

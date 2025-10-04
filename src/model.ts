@@ -1,28 +1,37 @@
 import OpenAI from 'openai';
 import fs from 'fs/promises';
 import { config } from './config.js';
+import { loadSettings, getActiveApiKey, getActiveBaseUrl } from './settingsManager.js';
 
 // Lazy initialization - only create client when first needed
-// This ensures environment variables are loaded first
-let openrouter: OpenAI | null = null;
+// This ensures settings are loaded first
+let aiClient: OpenAI | null = null;
+let lastProvider: string | null = null;
 
-function getOpenRouterClient(): OpenAI {
-  if (!openrouter) {
-    const apiKey = process.env.OPENROUTER_API_KEY;
+async function getAIClient(): Promise<OpenAI> {
+  const settings = await loadSettings();
+  
+  // Recreate client if provider changed
+  if (!aiClient || lastProvider !== settings.apiProvider) {
+    const apiKey = await getActiveApiKey();
+    const baseURL = await getActiveBaseUrl();
     
     if (!apiKey) {
-      throw new Error('OPENROUTER_API_KEY not found in environment! Make sure you have a .env file with OPENROUTER_API_KEY=your-key');
+      throw new Error(`No API key configured for provider: ${settings.apiProvider}. Please configure API keys in Settings.`);
     }
     
-    openrouter = new OpenAI({
-      baseURL: config.ai.openrouter.base_url,
+    aiClient = new OpenAI({
+      baseURL: baseURL,
       apiKey: apiKey,
       timeout: config.ai.openrouter.timeout,
       maxRetries: config.ai.openrouter.max_retries,
     });
+    
+    lastProvider = settings.apiProvider;
+    console.log(`✅ AI client initialized for provider: ${settings.apiProvider}`);
   }
   
-  return openrouter;
+  return aiClient;
 }
 
 export interface ChatMessage {
@@ -56,11 +65,12 @@ export async function chat(message: ChatMessage): Promise<string> {
       });
     }
 
-    // Get client (lazy initialization ensures env vars are loaded)
-    const client = getOpenRouterClient();
+    // Get client and settings
+    const client = await getAIClient();
+    const settings = await loadSettings();
     
     const completion = await client.chat.completions.create({
-      model: config.ai.openrouter.vision_model,
+      model: settings.models.vision,
       messages: [
         {
           role: 'user',
@@ -125,11 +135,12 @@ export async function chatStream(
       });
     }
 
-    // Get client (lazy initialization ensures env vars are loaded)
-    const client = getOpenRouterClient();
+    // Get client and settings
+    const client = await getAIClient();
+    const settings = await loadSettings();
     
     const stream = await client.chat.completions.create({
-      model: config.ai.openrouter.vision_model,
+      model: settings.models.vision,
       messages: [
         {
           role: 'user',

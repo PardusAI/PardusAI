@@ -22,15 +22,23 @@ declare global {
       deleteDatabase: (id: string) => Promise<any>;
       
       // Settings
-      getSettings: () => Promise<{ alwaysOnTop: boolean; clickThrough: boolean; preventCapture: boolean }>;
+      getSettings: () => Promise<{ alwaysOnTop: boolean; clickThrough: boolean; preventCapture: boolean; theme: 'dark' | 'light' }>;
       setAlwaysOnTop: (enabled: boolean) => Promise<void>;
       setClickThrough: (enabled: boolean) => Promise<void>;
       setPreventCapture: (enabled: boolean) => Promise<void>;
+      setTheme: (theme: 'dark' | 'light') => Promise<void>;
       
       // Screenshot control
       startCapture: () => Promise<void>;
       stopCapture: () => Promise<void>;
       getCaptureStatus: () => Promise<boolean>;
+      
+      // API Settings
+      getApiSettings: () => Promise<any>;
+      saveApiSettings: (settings: any) => Promise<any>;
+      
+      // External URL handling
+      openExternalUrl: (url: string) => Promise<any>;
     };
   }
   
@@ -65,6 +73,14 @@ const settingsClose = document.getElementById('settings-close') as HTMLButtonEle
 const alwaysOnTopToggle = document.getElementById('always-on-top') as HTMLInputElement;
 const clickThroughToggle = document.getElementById('click-through') as HTMLInputElement;
 const preventCaptureToggle = document.getElementById('prevent-capture') as HTMLInputElement;
+const themeToggle = document.getElementById('theme-toggle') as HTMLInputElement;
+
+// API Settings elements
+const apiProviderSelect = document.getElementById('api-provider') as HTMLSelectElement;
+const apiKeyInput = document.getElementById('api-key') as HTMLInputElement;
+const visionModelInput = document.getElementById('vision-model') as HTMLInputElement;
+const baseUrlInput = document.getElementById('base-url') as HTMLInputElement;
+const saveApiSettingsBtn = document.getElementById('save-api-settings') as HTMLButtonElement;
 
 // Screenshot control button
 const screenshotToggleBtn = document.getElementById('screenshot-toggle') as HTMLButtonElement;
@@ -91,6 +107,36 @@ if (typeof marked !== 'undefined') {
     gfm: true
   });
 }
+
+// Handle URL clicks in markdown content
+function handleUrlClicks() {
+  document.addEventListener('click', async (e) => {
+    const target = e.target as HTMLElement;
+    
+    // Check if clicked element is a link
+    if (target.tagName === 'A' && target.getAttribute('href')) {
+      const url = target.getAttribute('href');
+      
+      // Check if it's an external URL
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        e.preventDefault();
+        console.log('🔗 External URL clicked:', url);
+        
+        try {
+          const result = await window.electronAPI.openExternalUrl(url);
+          if (!result.success && !result.cancelled) {
+            console.error('Failed to open URL:', result.message);
+          }
+        } catch (error) {
+          console.error('Error opening external URL:', error);
+        }
+      }
+    }
+  });
+}
+
+// Initialize URL click handling
+handleUrlClicks();
 
 // Helper function to render markdown with LaTeX
 function renderMarkdownWithLatex(content: string, targetElement: HTMLElement) {
@@ -498,17 +544,8 @@ function removeThinkingIndicator() {
 }
 
 function addMemoryInfo(memories: any[], totalCount: number) {
-  const infoDiv = document.createElement('div');
-  infoDiv.className = 'memory-info';
-  
-  let html = `<strong>📋 Searched ${totalCount} memories, found ${memories.length} relevant:</strong><br>`;
-  memories.forEach(mem => {
-    html += `<div class="memory-item">• [${mem.date}] Similarity: ${mem.similarity}</div>`;
-  });
-  
-  infoDiv.innerHTML = html;
-  chatMessages.appendChild(infoDiv);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  // Memory info is now logged to trajectory file instead of displaying in UI
+  // This improves user experience by not cluttering the chat
 }
 
 // Store accumulated streaming text
@@ -697,12 +734,13 @@ messageInput.addEventListener('keypress', (e) => {
 });
 
 // Handle mouse events for click-through behavior
-const interactiveElements = [chatPopup, chatForm, messageInput, sendButton, clearButton, dbSelectorBtn, dbDropdown, settingsBtn, settingsModal, screenshotToggleBtn];
+const interactiveElements = [chatForm, messageInput, sendButton, clearButton, dbSelectorBtn, settingsBtn, screenshotToggleBtn];
 
-// Track mouse over interactive elements
+// Track mouse over interactive elements  
 document.addEventListener('mousemove', (e) => {
   // Don't change click-through state if a dialog is open
   if (isDialogOpen) {
+    window.electronAPI.setIgnoreMouseEvents(false);
     return;
   }
   
@@ -714,27 +752,31 @@ document.addEventListener('mousemove', (e) => {
   
   const target = e.target as HTMLElement;
   
-  // Check if mouse is over any interactive element
-  const isOverInteractive = interactiveElements.some(el => 
-    el && (el === target || el.contains(target))
-  );
+  // Check if settings modal is visible - if so, never use click-through
+  if (settingsModal.classList.contains('visible')) {
+    window.electronAPI.setIgnoreMouseEvents(false);
+    return;
+  }
   
-  // Also check if popup is visible and mouse is over it
+  // Check if database dropdown is visible - if so, never use click-through
+  if (dbDropdown.classList.contains('visible')) {
+    window.electronAPI.setIgnoreMouseEvents(false);
+    return;
+  }
+  
+  // Check if mouse is over the input container or any interactive elements
+  const inputContainer = document.querySelector('.input-container');
+  const isOverInputContainer = inputContainer && (inputContainer === target || inputContainer.contains(target));
+  
+  // Check if mouse is over visible chat popup
   const isOverVisiblePopup = chatPopup.classList.contains('visible') && 
     (chatPopup === target || chatPopup.contains(target));
   
-  // Also check if database dropdown is visible
-  const isOverVisibleDropdown = dbDropdown.classList.contains('visible') && 
-    (dbDropdown === target || dbDropdown.contains(target));
-  
-  // Also check if settings modal is visible
-  const isOverVisibleSettings = settingsModal.classList.contains('visible') && 
-    (settingsModal === target || settingsModal.contains(target));
-  
-  // Set click-through: ignore if NOT over interactive elements
-  if (isOverInteractive || isOverVisiblePopup || isOverVisibleDropdown || isOverVisibleSettings) {
+  // Disable click-through if over any interactive area
+  if (isOverInputContainer || isOverVisiblePopup) {
     window.electronAPI.setIgnoreMouseEvents(false);
   } else {
+    // Enable click-through for transparent background areas
     window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
   }
 });
@@ -854,8 +896,86 @@ async function loadSettings() {
   alwaysOnTopToggle.checked = settings.alwaysOnTop;
   clickThroughToggle.checked = settings.clickThrough;
   preventCaptureToggle.checked = settings.preventCapture;
+  themeToggle.checked = settings.theme === 'light';
   isClickThroughEnabled = settings.clickThrough;
+  
+  // Apply theme
+  applyTheme(settings.theme);
+  
+  // Load API settings
+  await loadApiSettings();
 }
+
+// Load API settings
+async function loadApiSettings() {
+  const apiSettings = await window.electronAPI.getApiSettings();
+  if (apiSettings) {
+    apiProviderSelect.value = apiSettings.apiProvider;
+    visionModelInput.value = apiSettings.models.vision;
+    
+    // Update base URL and API key based on provider
+    updateApiFieldsForProvider(apiSettings.apiProvider, apiSettings);
+  }
+}
+
+// Update API fields when provider changes
+function updateApiFieldsForProvider(provider: string, settings?: any) {
+  if (settings) {
+    baseUrlInput.value = settings.baseUrls[provider];
+    apiKeyInput.value = settings.apiKeys[provider] || '';
+  }
+}
+
+// Save API settings
+async function saveApiSettings() {
+  const settings = {
+    apiProvider: apiProviderSelect.value,
+    apiKeys: {
+      [apiProviderSelect.value]: apiKeyInput.value
+    },
+    models: {
+      vision: visionModelInput.value,
+      terminal: 'x-ai/grok-4-fast:free' // Keep default for now
+    },
+    baseUrls: {
+      [apiProviderSelect.value]: baseUrlInput.value
+    }
+  };
+  
+  const result = await window.electronAPI.saveApiSettings(settings);
+  
+  if (result.success) {
+    console.log('✅ API settings saved successfully');
+    // Show success feedback
+    saveApiSettingsBtn.textContent = 'Saved!';
+    saveApiSettingsBtn.style.background = '#10a37f';
+    setTimeout(() => {
+      saveApiSettingsBtn.textContent = 'Save API Settings';
+      saveApiSettingsBtn.style.background = '';
+    }, 2000);
+  } else {
+    console.error('❌ Failed to save API settings:', result.message);
+    // Show error feedback
+    saveApiSettingsBtn.textContent = 'Error!';
+    saveApiSettingsBtn.style.background = '#e74c3c';
+    setTimeout(() => {
+      saveApiSettingsBtn.textContent = 'Save API Settings';
+      saveApiSettingsBtn.style.background = '';
+    }, 2000);
+  }
+}
+
+// API Settings handlers
+apiProviderSelect.addEventListener('change', async () => {
+  const apiSettings = await window.electronAPI.getApiSettings();
+  if (apiSettings) {
+    updateApiFieldsForProvider(apiProviderSelect.value, apiSettings);
+  }
+});
+
+saveApiSettingsBtn.addEventListener('click', async () => {
+  await saveApiSettings();
+});
 
 // Always on top toggle
 alwaysOnTopToggle.addEventListener('change', async () => {
@@ -875,6 +995,17 @@ clickThroughToggle.addEventListener('change', async () => {
 // Prevent capture toggle
 preventCaptureToggle.addEventListener('change', async () => {
   await window.electronAPI.setPreventCapture(preventCaptureToggle.checked);
+});
+
+// Theme toggle
+function applyTheme(theme: 'dark' | 'light') {
+  document.body.setAttribute('data-theme', theme);
+}
+
+themeToggle.addEventListener('change', async () => {
+  const theme = themeToggle.checked ? 'light' : 'dark';
+  applyTheme(theme);
+  await window.electronAPI.setTheme(theme);
 });
 
 // Screenshot toggle button

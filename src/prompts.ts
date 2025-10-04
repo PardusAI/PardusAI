@@ -15,6 +15,8 @@ export const SCREENSHOT_DESCRIPTION_PROMPT =
   - **Images, icons, logos, or graphics**: identify and describe them clearly.  
   - **Layout and structure**: menus, navigation bars, dialog boxes, pop-ups, or any interface components.  
   - **Visual details**: colors, formatting, highlights, emphasis, or unique elements that distinguish this screenshot.  
+  - **You should ensure your content are in details. As detail as possible and as much as possible.
+  - ** Be descriptive remember your job is just to detaily descrbe the image. 
 
   The goal is to create a descriptive summary that makes this screenshot **easily retrievable** when a user asks a related question.
   `;
@@ -32,25 +34,30 @@ export function generateQuestionAnswerPrompt(
   imageContext: string
 ): string {
   return `
-    You are given **${resultsCount} screenshots** from my computer activity.  
-    Carefully analyze the visible content in these images and use it to answer the question below.
+    You are given **${resultsCount} screenshots** from my computer activity.
+    Your task is to **synthesize information across all screenshots** and use it to answer the question below.
 
-    **Question:**  
+    **Question:**
     ${question}
 
-    **Screenshots provided:**  
+    **Screenshots provided:**
     ${imageContext}
 
-    **Instructions for your response:**  
-    - Base your answer only on the actual content visible in the screenshots.  
-    - Reference any relevant **text, images, icons, or layout details** from the screenshots.  
-    - Provide a clear, detailed, and accurate explanation that directly addresses the question.
-    - Use **markdown formatting** for better readability (bold, lists, code blocks, etc.).
-    - **IMPORTANT**: For ANY mathematical expressions, equations, or formulas, you MUST wrap them in LaTeX delimiters:
-      * Use $...$ for inline math (e.g., $E = mc^2$ or $\sigma \in \Gamma(X, \mathcal{O}_X(B))$)
-      * Use $$...$$ for display/block math (e.g., $$x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$$)
-      * Never write raw LaTeX without delimiters
+    **Guidelines for your response:**
 
+    * **Do not** describe or analyze each screenshot individually. Instead, integrate all visible information into a single, coherent answer.
+    * Base your response **only** on the actual content visible in the screenshots.
+    * Reference any relevant **text, images, icons, or layout details** that support your reasoning.
+    * Provide a clear, detailed, and accurate explanation that directly addresses the question.
+    * Use **markdown formatting** for readability (bold, lists, code blocks, etc.).
+    * For **mathematical expressions, equations, or formulas**:
+
+      * Use $...$ for inline math (e.g., $E = mc^2$ or $\sigma \in \Gamma(X, \mathcal{O}_X(B))$).
+      * Use $$...$$ for block math (e.g., $$x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$$).
+      * Never write raw LaTeX without delimiters.
+    * You should provide the URL / relative position for user to understand where to use the get back the information. 
+
+    Your goal: Provide a **concise, synthesized explanation** that fully answers the question using only the evidence in the screenshots.
     `;
 }
 

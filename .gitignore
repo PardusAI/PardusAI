@@ -14,6 +14,9 @@ node_modules/
 # Environment
 .env
 
+# User settings (contains API keys)
+user-settings.json
+
 # Screenshots
 tmp/
 *.png
@@ -35,3 +38,11 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+logs/
+
+# Build output
+release/
+*.dmg
+*.exe
+*.AppImage
+*.deb

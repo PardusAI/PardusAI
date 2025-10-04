@@ -21,16 +21,23 @@ body {
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
-  pointer-events: none; /* App wrapper is click-through */
+  pointer-events: none; /* App wrapper is click-through by default */
 }
 
-.app-wrapper > * {
-  pointer-events: auto; /* Only direct children capture events */
+/* Only these specific elements should capture mouse events */
+.input-container,
+.settings-modal,
+.dialog-overlay {
+  pointer-events: auto;
 }
 
-/* Make sure the popup itself is click-through when not visible */
-.chat-popup:not(.visible) {
-  pointer-events: none !important;
+/* Chat popup only captures events when visible */
+.chat-popup {
+  pointer-events: none;
+}
+
+.chat-popup.visible {
+  pointer-events: auto;
 }
 
 .chat-popup {
@@ -46,7 +53,6 @@ body {
   margin-bottom: 16px;
   display: none;
   overflow: hidden;
-  pointer-events: auto; /* Only this box should capture events */
 }
 
 .chat-popup.visible {
@@ -596,6 +602,9 @@ body {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
   width: 90%;
   max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -634,6 +643,29 @@ body {
 
 .settings-body {
   padding: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Custom scrollbar for settings body */
+.settings-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-body::-webkit-scrollbar-track {
+  background: rgba(68, 70, 84, 0.3);
+  border-radius: 4px;
+}
+
+.settings-body::-webkit-scrollbar-thumb {
+  background: rgba(86, 88, 105, 0.6);
+  border-radius: 4px;
+}
+
+.settings-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(86, 88, 105, 0.8);
 }
 
 .setting-item {
@@ -726,6 +758,77 @@ input:checked + .toggle-slider:before {
 
 input:checked + .toggle-slider:hover {
   background-color: #0e8f6f;
+}
+
+/* Settings sections */
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-section:last-child {
+  margin-bottom: 0;
+}
+
+.settings-section h4 {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 16px 8px 16px;
+  padding-top: 8px;
+}
+
+/* Setting input fields */
+.setting-input,
+.setting-select {
+  width: 200px;
+  padding: 8px 12px;
+  background: rgba(68, 70, 84, 0.6);
+  border: 1px solid rgba(86, 88, 105, 0.4);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.setting-input:focus,
+.setting-select:focus {
+  background: rgba(68, 70, 84, 0.8);
+  border-color: #10a37f;
+}
+
+.setting-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.setting-select {
+  cursor: pointer;
+}
+
+/* Save button */
+.save-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background: #10a37f;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.save-btn:hover {
+  background: #0e8f6f;
+}
+
+.save-btn:active {
+  transform: scale(0.98);
 }
 
 /* Custom Dialog */
@@ -838,5 +941,350 @@ input:checked + .toggle-slider:hover {
 .chat-messages::-webkit-scrollbar-thumb:hover,
 .db-list::-webkit-scrollbar-thumb:hover {
   background: rgba(86, 88, 105, 0.8);
+}
+
+/* Light Mode Theme - iPhone Assistant Level Transparency */
+body[data-theme="light"] .chat-popup {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+body[data-theme="light"] .message {
+  background: rgba(245, 245, 247, 0.3);
+  color: #1a1a1a;
+}
+
+body[data-theme="light"] .message.user {
+  background: rgba(84, 54, 218, 0.1);
+  border-left: 3px solid #5436da;
+}
+
+body[data-theme="light"] .message.assistant {
+  background: rgba(16, 163, 127, 0.1);
+  border-left: 3px solid #10a37f;
+}
+
+body[data-theme="light"] .message-label {
+  color: #444;
+  font-weight: 600;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+body[data-theme="light"] .message-content {
+  color: #000;
+  font-weight: 500;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+body[data-theme="light"] .message-content strong {
+  color: #000;
+}
+
+body[data-theme="light"] .message-content code {
+  background: rgba(0, 0, 0, 0.08);
+  color: #1a1a1a;
+}
+
+body[data-theme="light"] .message-content pre {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+body[data-theme="light"] .message-content blockquote {
+  border-left: 3px solid rgba(0, 0, 0, 0.2);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+body[data-theme="light"] .message-content h1,
+body[data-theme="light"] .message-content h2,
+body[data-theme="light"] .message-content h3,
+body[data-theme="light"] .message-content h4,
+body[data-theme="light"] .message-content h5,
+body[data-theme="light"] .message-content h6 {
+  color: #000;
+}
+
+body[data-theme="light"] .thinking-message {
+  background: rgba(245, 245, 247, 0.3);
+  color: #000;
+  font-weight: 500;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+body[data-theme="light"] .thinking-dots span {
+  background: #666;
+}
+
+body[data-theme="light"] .memory-info {
+  color: #666;
+  background: rgba(245, 245, 247, 0.4);
+  border-left: 3px solid #10a37f;
+}
+
+body[data-theme="light"] .error-message {
+  color: #dc2626 !important;
+}
+
+body[data-theme="light"] #chat-form {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+body[data-theme="light"] #message-input {
+  color: #000;
+  font-weight: 500;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+body[data-theme="light"] #message-input::placeholder {
+  color: #666;
+  font-weight: 400;
+}
+
+body[data-theme="light"] #send-button,
+body[data-theme="light"] #clear-button {
+  color: #666;
+}
+
+body[data-theme="light"] #send-button:hover,
+body[data-theme="light"] #clear-button:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #1a1a1a;
+}
+
+body[data-theme="light"] #clear-button:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: #dc2626;
+}
+
+body[data-theme="light"] .status-bar {
+  color: rgba(0, 0, 0, 0.8);
+  font-weight: 500;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+body[data-theme="light"] .icon-btn {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+body[data-theme="light"] .icon-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .screenshot-toggle.active {
+  color: #10a37f;
+  background: rgba(16, 163, 127, 0.2);
+}
+
+body[data-theme="light"] .screenshot-toggle.active:hover {
+  background: rgba(16, 163, 127, 0.3);
+}
+
+body[data-theme="light"] .db-selector-btn {
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(0, 0, 0, 0.8);
+}
+
+body[data-theme="light"] .db-selector-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .db-dropdown {
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+body[data-theme="light"] .db-dropdown-header {
+  border-bottom: 1px solid rgba(200, 200, 200, 0.4);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+body[data-theme="light"] .new-db-btn {
+  background: rgba(16, 163, 127, 0.15);
+  border: 1px solid rgba(16, 163, 127, 0.3);
+  color: #0e8f6f;
+}
+
+body[data-theme="light"] .new-db-btn:hover {
+  background: rgba(16, 163, 127, 0.25);
+  border-color: rgba(16, 163, 127, 0.5);
+}
+
+body[data-theme="light"] .db-item {
+  border-bottom: 1px solid rgba(200, 200, 200, 0.3);
+}
+
+body[data-theme="light"] .db-item:hover {
+  background: rgba(245, 245, 247, 0.4);
+}
+
+body[data-theme="light"] .db-item.active {
+  background: rgba(16, 163, 127, 0.1);
+  border-left: 3px solid #10a37f;
+}
+
+body[data-theme="light"] .db-name {
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .db-action-btn {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+body[data-theme="light"] .db-action-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .db-action-btn.delete-btn:hover {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #dc2626;
+}
+
+body[data-theme="light"] .settings-modal {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+}
+
+body[data-theme="light"] .settings-content {
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+}
+
+body[data-theme="light"] .settings-header {
+  border-bottom: 1px solid rgba(200, 200, 200, 0.4);
+}
+
+body[data-theme="light"] .settings-header h3 {
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .settings-close {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+body[data-theme="light"] .settings-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .setting-item:hover {
+  background: rgba(245, 245, 247, 0.3);
+}
+
+body[data-theme="light"] .setting-info label {
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .setting-info p {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+body[data-theme="light"] .toggle-slider {
+  background-color: rgba(200, 200, 200, 0.6);
+  border: 1px solid rgba(200, 200, 200, 0.4);
+}
+
+body[data-theme="light"] .toggle-slider:hover {
+  background-color: rgba(200, 200, 200, 0.8);
+}
+
+body[data-theme="light"] .settings-section h4 {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+body[data-theme="light"] .setting-input,
+body[data-theme="light"] .setting-select {
+  background: rgba(245, 245, 247, 0.6);
+  border: 1px solid rgba(200, 200, 200, 0.4);
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .setting-input:focus,
+body[data-theme="light"] .setting-select:focus {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: #10a37f;
+}
+
+body[data-theme="light"] .setting-input::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+body[data-theme="light"] .settings-body::-webkit-scrollbar-track {
+  background: rgba(200, 200, 200, 0.3);
+}
+
+body[data-theme="light"] .settings-body::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 150, 0.6);
+}
+
+body[data-theme="light"] .settings-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 150, 150, 0.8);
+}
+
+body[data-theme="light"] .dialog-overlay {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+}
+
+body[data-theme="light"] .dialog-box {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+}
+
+body[data-theme="light"] .dialog-header {
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .dialog-input {
+  background: rgba(245, 245, 247, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .dialog-input:focus {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: #10a37f;
+}
+
+body[data-theme="light"] .dialog-btn-cancel {
+  background: rgba(200, 200, 200, 0.6);
+  color: rgba(0, 0, 0, 0.8);
+}
+
+body[data-theme="light"] .dialog-btn-cancel:hover {
+  background: rgba(200, 200, 200, 0.8);
+  color: rgba(0, 0, 0, 0.9);
+}
+
+body[data-theme="light"] .chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(200, 200, 200, 0.6);
+}
+
+body[data-theme="light"] .chat-messages::-webkit-scrollbar-thumb:hover,
+body[data-theme="light"] .db-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(200, 200, 200, 0.8);
 }
 
