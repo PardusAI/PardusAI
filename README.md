@@ -1,42 +1,31 @@
-# Memory Bench - Screenshot Memory System with RAG
+# Memory Bench
 
-A beautiful Electron chat application that captures screenshots, generates descriptions using AI, creates embeddings, and allows you to query your visual history through a modern chat interface.
+A desktop application that captures screenshots, generates AI-powered descriptions, and enables natural language search through visual history using RAG (Retrieval-Augmented Generation).
 
-![Memory Bench](screenshot.png)
+## Features
 
-## ✨ Features
+- Modern Electron-based chat interface
+- Automatic screenshot capture with duplicate detection
+- AI-powered image descriptions using OpenRouter (Pixtral-12B)
+- Semantic embeddings via Ollama's embeddinggemma model
+- Natural language query system for screenshot retrieval
+- System tray integration with memory counter
+- Keyboard shortcuts for quick access
 
-- 💬 **Modern Chat Interface**: Beautiful Electron app with real-time chat UI
-- 🖼️ **Automatic Screenshot Capture**: Captures screenshots every 3s with duplicate detection
-- 🤖 **AI-Powered Summaries**: Uses OpenRouter (Pixtral-12B) to generate descriptions of screenshots
-- 🧠 **Semantic Embeddings**: Creates vector embeddings using Ollama's embeddinggemma model
-- 🔍 **RAG-Based Retrieval**: Find relevant screenshots using natural language queries
-- 📊 **Live Memory Counter**: See the number of captured memories update in real-time
-- 🎛️ **System Tray Icon**: Menu bar icon with memory count and easy quit option
-- ⌨️ **Keyboard Shortcuts**: ESC or ⌘Q/Ctrl+Q to quit instantly
+## Prerequisites
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-1. **Ollama**: Install Ollama and pull the embedding model:
+1. **Ollama** - Install from https://ollama.ai and pull the embedding model:
    ```bash
-   # Install Ollama from https://ollama.ai
    ollama pull embeddinggemma:latest
    ```
 
-2. **OpenRouter API Key**: Create a `.env` file in the project root:
+2. **OpenRouter API Key** - Create a `.env` file:
    ```bash
-   # Copy the template
    cp env.template .env
-   
-   # Then edit .env and add your actual API key
-   OPENROUTER_API_KEY=your-actual-api-key-here
    ```
-   
-   Get your API key from [https://openrouter.ai/](https://openrouter.ai/)
+   Edit `.env` and add your API key from https://openrouter.ai/
 
-3. **FFmpeg**: Required for image comparison:
+3. **FFmpeg** - Required for image comparison:
    ```bash
    # macOS
    brew install ffmpeg
@@ -45,189 +34,138 @@ A beautiful Electron chat application that captures screenshots, generates descr
    sudo apt-get install ffmpeg
    ```
 
-### Installation
+## Installation
 
 ```bash
 npm install
 ```
 
-### Usage
+## Usage
 
-#### Start the Electron App (Recommended)
-
+### Electron Application
 ```bash
 npm start
 ```
 
-This will compile TypeScript and launch the Electron chat application with a modern UI.
-
-#### Terminal Version (Alternative)
-
+### Terminal Version
 ```bash
 npm run terminal
 ```
 
-This runs the original terminal-based version.
-
-#### Using Docker
-
+### Docker
 ```bash
-# Start with Docker Compose
 docker-compose up -d
-
-# View logs
 docker-compose logs -f memory-bench
-
-# Stop
 docker-compose down
 ```
 
-## 📖 How It Works
+## How It Works
 
-The system runs **two concurrent processes**:
+The system operates two concurrent processes:
 
-### 1. Continuous Screenshot Capture (Background - Silent)
+### Screenshot Capture
+- Captures screenshots every 3 seconds
+- Compares with previous captures to detect duplicates
+- Processes unique screenshots in parallel:
+  - Sends to OpenRouter for AI description
+  - Generates semantic embedding
+  - Stores with timestamp, path, description, and embedding
 
-- **Non-blocking capture**: Takes screenshots every 3 seconds continuously
-- Each screenshot immediately spawns a background processing thread
-- **No waiting** - capture continues while AI processes images in parallel
-- Compares with previous screenshot to avoid duplicates
-- For each unique screenshot (processed in parallel):
-  - Sends to OpenRouter for AI-generated description
-  - Generates semantic embedding of the description
-  - Stores in memory with timestamp, image path, description, and embedding
-- Runs completely silently without logging
-- **Result**: Maximum information capture with zero data loss
+### Query Interface
+- Natural language questions retrieve the top 3 relevant screenshots
+- Actual images are sent to the vision model for analysis
+- Real-time answers based on visual content
 
-### 2. Interactive Q&A (Foreground)
-
-- **Ask questions anytime** - no waiting required!
-- Type your question and press Enter
-- System retrieves the top 3 most relevant screenshots using cosine similarity
-- **Sends actual images** to the vision model (not just descriptions)
-- Model analyzes the real screenshots and answers based on what it sees
-- Ask as many questions as you want, whenever you want
-
-Both processes run simultaneously - screenshots are continuously captured in the background while you can freely ask questions at any time!
-
-## 💡 Example Questions
-
-- "What was I working on around 2pm?"
-- "Show me when I was looking at documentation"
-- "What code files did I have open?"
-- "When was I browsing social media?"
-
-## 📁 Project Structure
-
-```
-memory-bench/
-├── src/                      # TypeScript source files
-│   ├── electron-main.ts      # Electron main process
-│   ├── preload.ts            # IPC bridge
-│   ├── renderer.ts           # UI logic
-│   ├── index.ts              # Terminal version
-│   ├── model.ts              # OpenRouter integration
-│   ├── embeddings.ts         # Ollama embeddings & RAG
-│   ├── prompts.ts            # Centralized AI prompts
-│   └── screenshot-desktop.d.ts # Type declarations
-├── dist/                     # Compiled JavaScript (generated)
-├── tmp/                      # Screenshot storage
-├── index.html                # Chat UI
-├── styles.css                # UI styling
-├── config.yml                # Application configuration
-├── docker-compose.yml        # Docker setup
-├── .env                      # Environment variables (create this!)
-├── env.template              # .env template
-└── package.json              # Dependencies and scripts
-```
-
-## ⚙️ Configuration
+## Configuration
 
 Edit `config.yml` to customize:
-
 - Screenshot capture interval
 - AI models (vision and embedding)
 - RAG settings (top_k, similarity threshold)
-- UI behavior (window size, popup timing)
+- UI behavior (window size, timing)
 - Keyboard shortcuts
 - Debug settings
 
-## 🛠️ Available Commands
+## Project Structure
+
+```
+memory-bench/
+├── src/                      # TypeScript source
+│   ├── electron-main.ts      # Main process
+│   ├── preload.js            # IPC bridge
+│   ├── renderer.ts           # UI logic
+│   ├── index.ts              # Terminal version
+│   ├── model.ts              # OpenRouter integration
+│   ├── embeddings.ts         # Embeddings & RAG
+│   └── prompts.ts            # AI prompts
+├── dist/                     # Compiled JavaScript
+├── tmp/                      # Screenshot storage
+├── index.html                # UI
+├── styles.css                # Styling
+├── config.yml                # Configuration
+└── .env                      # Environment variables
+```
+
+## Available Commands
 
 ```bash
 npm start         # Build and run Electron app
-npm run build     # Just build TypeScript
+npm run build     # Compile TypeScript
 npm run clean     # Remove dist/ folder
-npm run terminal  # Run terminal version (no UI)
+npm run terminal  # Run terminal version
 npm run dev       # Build and run in dev mode
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
-### "Missing credentials" error
+### Missing credentials error
+- Verify `.env` file exists in project root
+- Confirm API key is correctly set: `OPENROUTER_API_KEY=your-key`
 
-- Make sure you've created the `.env` file in the project root
-- Make sure your API key is correctly set in `.env`
-- The file should contain: `OPENROUTER_API_KEY=your-actual-key`
-
-### Memory counter stuck at "0 memories"
-
-1. Check console logs: Should see `💾 Memory saved! Total: X`
-2. Wait a bit longer: First screenshot takes 5-10 seconds to process
-3. Check Ollama is running: `ollama list`
+### Memory counter at zero
+- Check console for memory save logs
+- Allow 5-10 seconds for first screenshot processing
+- Verify Ollama is running: `ollama list`
 
 ### Build errors
-
 ```bash
 npm run clean
 npm run build
 ```
 
 ### Screenshot errors
+- Verify FFmpeg installation: `ffmpeg -version`
+- Check `tmp/` directory exists and is writable
 
-- Make sure FFmpeg is installed: `ffmpeg -version`
-- Check that the `tmp/` directory exists and is writable
+### API connection issues
+- Validate API key in `.env`
+- Check network connectivity
+- Verify model availability at OpenRouter status page
 
-### API Connection Errors
+## Technologies
 
-1. **Check Your API Key**: Verify `.env` has valid OpenRouter API key
-2. **Network Connectivity**: Check internet connection
-3. **Rate Limiting**: The app automatically handles rate limits with delays
-4. **Model Availability**: Check OpenRouter status page
+- **Electron** - Desktop application framework
+- **TypeScript** - Type-safe development
+- **OpenRouter** - AI vision API (Mistral Pixtral-12B)
+- **Ollama** - Local embeddings (embeddinggemma)
+- **screenshot-desktop** - Cross-platform capture
+- **FFmpeg** - Image comparison
 
-### No response when asking questions
-
-1. Check console for detailed error messages
-2. Verify API key is valid at https://openrouter.ai/
-3. Ensure Ollama is running for embeddings
-4. Check that memories are being captured (watch console logs)
-
-## 🏗️ Technologies
-
-- **Electron**: Cross-platform desktop application framework
-- **TypeScript**: Type-safe development
-- **OpenRouter**: AI chat and vision API (using Mistral Pixtral-12B)
-- **Ollama**: Local embeddings (embeddinggemma model)
-- **screenshot-desktop**: Cross-platform screenshot capture
-- **FFmpeg**: Image comparison for duplicate detection
-
-## 📊 Memory Entry Structure
+## Memory Entry Structure
 
 ```typescript
 interface MemoryEntry {
   time: number;           // Unix timestamp
-  imageUrl: string;       // Path to screenshot
+  imageUrl: string;       // Screenshot path
   description: string;    // AI-generated summary
   embedding: number[];    // Vector embedding
 }
 ```
 
-## 🤝 Contributing
+## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and setup.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
-## 📝 License
+## License
+
 Refer to LICENSE
----
-
-**Ready to go!** Just run `npm start` and watch the magic happen! ✨

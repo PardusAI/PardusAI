@@ -283,6 +283,13 @@ async function updateDatabaseSelector() {
   activeDatabase = activeMeta;
   
   if (activeMeta) {
+    // Clear the button first to prevent text overlap
+    dbSelectorBtn.innerHTML = '';
+    
+    // Force a reflow to ensure the clear is applied
+    void dbSelectorBtn.offsetHeight;
+    
+    // Set new content
     dbSelectorBtn.innerHTML = `
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
