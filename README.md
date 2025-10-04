@@ -2,6 +2,10 @@
 
 Your Personal AI Assistant
 
+## Demo Video
+
+[![Demo Video](https://img.youtube.com/vi/N1UkuEjHuWs/maxresdefault.jpg)](https://www.youtube.com/watch?v=N1UkuEjHuWs)
+
 ## Features
 
 - Modern Electron-based chat interface
