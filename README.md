@@ -2,6 +2,10 @@
 
 A desktop application that captures screenshots, generates AI-powered descriptions, and enables natural language search through visual history using RAG (Retrieval-Augmented Generation).
 
+## Demo Video
+
+[![Demo Video](https://img.youtube.com/vi/N1UkuEjHuWs/maxresdefault.jpg)](https://www.youtube.com/watch?v=N1UkuEjHuWs)
+
 ## Features
 
 - Modern Electron-based chat interface
