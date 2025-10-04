@@ -1,4 +1,4 @@
-import { MemoryDatabase } from './database.js';
+import { MemoryDatabase } from '../database/database.js';
 import { generateEmbedding } from './embeddings.js';
 
 /**

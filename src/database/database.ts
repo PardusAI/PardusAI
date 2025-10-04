@@ -76,7 +76,7 @@ export class MemoryDatabase {
    * Add a new memory (without embedding initially)
    */
   async addMemory(imageUrl: string, description: string): Promise<string> {
-    const id = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `mem_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     
     const record: MemoryRecord = {
       id,

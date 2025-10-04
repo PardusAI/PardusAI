@@ -1,7 +1,7 @@
 import { Ollama } from 'ollama';
-import { MemoryDatabase } from './database.js';
-import type { MemoryRecord } from './database.js';
-import { config } from './config.js';
+import { MemoryDatabase } from '../database/database.js';
+import type { MemoryRecord } from '../database/database.js';
+import { config } from '../core/config.js';
 
 // Initialize Ollama client with config
 const ollama = new Ollama({

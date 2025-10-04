@@ -56,6 +56,7 @@ export function generateQuestionAnswerPrompt(
       * Use $$...$$ for block math (e.g., $$x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$$).
       * Never write raw LaTeX without delimiters.
     * You should provide the URL / relative position for user to understand where to use the get back the information. 
+    * You don't have to save based on the screenshot, instead just answer the question directly by saying based on the record.
 
     Your goal: Provide a **concise, synthesized explanation** that fully answers the question using only the evidence in the screenshots.
     `;

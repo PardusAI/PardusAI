@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import fs from 'fs/promises';
 import { config } from './config.js';
-import { loadSettings, getActiveApiKey, getActiveBaseUrl } from './settingsManager.js';
+import { loadSettings, getActiveApiKey, getActiveBaseUrl } from '../settingsManager.js';
 
 // Lazy initialization - only create client when first needed
 // This ensures settings are loaded first

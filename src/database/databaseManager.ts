@@ -83,7 +83,7 @@ export class DatabaseManager {
    * Create a new database
    */
   async createDatabase(name: string): Promise<string> {
-    const id = `db_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `db_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     const filePath = path.join(this.dataDir, `${id}.json`);
 
     const metadata: DatabaseMetadata = {

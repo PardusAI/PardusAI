@@ -1,9 +1,9 @@
-# Memory Bench Configuration File
+# Pardus AI Configuration File
 # This file contains all configurable settings for the application
 
 # Application Settings
 app:
-  name: "Memory Bench"
+  name: "Pardus AI"
   version: "1.0.0"
   description: "Screenshot Memory System with RAG"
 
@@ -14,14 +14,14 @@ capture:
   # Default: 3000ms (3 seconds). Adjust this to change capture frequency.
   # Lower values = more frequent screenshots (higher resource usage)
   # Higher values = less frequent screenshots (lower resource usage)
-  interval: 500
+  interval: 200
   # Processing delay before sending to AI (for rate limiting)
   # This delay is added before processing each screenshot to avoid API rate limits
   processing_delay: 1000
   # Directory to store screenshots
   output_directory: "tmp"
   # Image similarity threshold for duplicate detection (0.0-1.0)
-  similarity_threshold: 0.95
+  similarity_threshold: 0.99
 
 # AI Model Settings
 ai:
@@ -49,7 +49,7 @@ rag:
   # Number of top similar screenshots to retrieve
   top_k: 5
   # Minimum similarity score threshold (0.0-1.0)
-  min_similarity: 0.0
+  min_similarity: 0.4
 
 # UI Settings
 ui:

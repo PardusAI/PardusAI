@@ -6,8 +6,8 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Project root directory (one level up from dist)
-const projectRoot = path.join(__dirname, '..');
+// Project root directory (two levels up from dist/core)
+const projectRoot = path.join(__dirname, '..', '..');
 
 interface Config {
   app: {
@@ -91,6 +91,12 @@ function parseYaml(content: string): any {
     const key = trimmed.substring(0, colonIndex).trim();
     let value: any = trimmed.substring(colonIndex + 1).trim();
 
+    // Strip inline comments (anything after #)
+    const commentIndex = value.indexOf('#');
+    if (commentIndex !== -1) {
+      value = value.substring(0, commentIndex).trim();
+    }
+
     // Parse value types
     if (value === '') {
       value = {};
@@ -142,7 +148,7 @@ export function loadConfig(): Config {
     // Return default config
     return {
       app: {
-        name: 'Memory Bench',
+        name: 'Pardus AI',
         version: '1.0.0',
         description: 'Screenshot Memory System with RAG'
       },
