@@ -1,4 +1,4 @@
-# Memory Bench
+# Pardus AI
 
 A desktop application that captures screenshots, generates AI-powered descriptions, and enables natural language search through visual history using RAG (Retrieval-Augmented Generation).
 
